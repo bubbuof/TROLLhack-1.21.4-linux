@@ -1,0 +1,32 @@
+
+{
+  "accessWidener": "matebal.accesswidener",
+  "schemaVersion": 1,
+  "id": "zenith",
+  "version": "1.2",
+  "name": "zenith",
+  "description": "Minecraft Modification",
+  "authors": [
+    "Fabos",
+    "Pidor"
+  ],
+  "contact": {
+    "website": "https://zenithclient.ru",
+    "repo": "none"
+  },
+  "license": "All-Rights-Reserved",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "ru.zenith.core.Main"
+    ]
+  },
+  "mixins": [
+    "mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.17.3",
+    "fabric": "*",
+    "minecraft": "~1.21.4"
+  }
+}
