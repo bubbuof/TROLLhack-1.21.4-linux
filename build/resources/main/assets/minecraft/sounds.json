@@ -1,0 +1,22 @@
+{
+  "gui_open": {
+    "sounds": [
+      "minecraft:gui_open"
+    ]
+  },
+  "gui_close": {
+    "sounds": [
+      "minecraft:gui_close"
+    ]
+  },
+  "module_enable": {
+    "sounds": [
+      "minecraft:module_enable"
+    ]
+  },
+  "module_disable": {
+    "sounds": [
+      "minecraft:module_disable"
+    ]
+  }
+}
