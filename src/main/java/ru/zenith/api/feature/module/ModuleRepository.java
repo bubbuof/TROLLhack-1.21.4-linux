@@ -21,6 +21,8 @@ public class ModuleRepository {
 
     public void setup() {
         register(
+                new AutoBuff(),
+                new Jesus(),
                 new LongJump(),
                 new ServerHelper(),
                 new WaterSpeed(),
