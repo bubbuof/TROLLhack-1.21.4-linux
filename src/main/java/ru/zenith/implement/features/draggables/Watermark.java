@@ -32,7 +32,7 @@ public class Watermark extends AbstractDraggable {
         int imageSize = 32;
         
         // Text
-        String text = "TROLLHACK";
+        String text = "88HACK";
         float textWidth = font.getStringWidth(text);
         float textHeight = font.getStringHeight(text);
         
@@ -48,7 +48,7 @@ public class Watermark extends AbstractDraggable {
         float textY = getY() + (totalHeight - textHeight) / 2;
         
         // Draw TROLLHACK text - simple green text
-        font.drawString(matrices, text, textX, textY, ColorUtil.getColor(0, 255, 0, 255));
+        font.drawString(matrices, text, textX, textY, ColorUtil.getColor(0, 119, 255, 255));
         
         // Update dimensions
         setWidth((int) totalWidth);
