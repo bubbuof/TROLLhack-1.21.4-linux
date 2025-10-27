@@ -34,25 +34,22 @@ public class ValueComponent extends AbstractSettingComponent {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         MatrixStack matrix = context.getMatrices();
 
-        String wrapped = StringUtil.wrap(setting.getDescription(), 70, 12);
-        height = (int) (18 + Fonts.getSize(12).getStringHeight(wrapped) / 3);
+        height = 28;
 
         String value = String.valueOf(setting.getValue());
 
-        // GameSense/Skeet.cc style value display
-        Fonts.getSize(12, BOLD).drawString(matrix, value, x + width - 9 - Fonts.getSize(12).getStringWidth(value), y + 8, ColorUtil.getSkeetAccent());
+        Fonts.getSize(14, BOLD).drawString(matrix, setting.getName(), (int) (x + 6), (int) (y + 6), 0xFFD4D6E1);
+        Fonts.getSize(12, BOLD).drawString(matrix, value, (int) (x + width - 6 - Fonts.getSize(12).getStringWidth(value)), (int) (y + 7), ColorUtil.getClientColor());
 
         changeValue(getDifference(mouseX, matrix));
-
-        // GameSense/Skeet.cc style text colors
-        Fonts.getSize(14, BOLD).drawString(matrix, setting.getName(), x + 9, y + 6, ColorUtil.getSkeetText());
-        Fonts.getSize(12).drawString(matrix, wrapped, x + 9, y + 15, ColorUtil.getSkeetTextSecondary());
     }
 
     
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        dragging = MathUtil.isHovered(mouseX, mouseY, x + width - SLIDER_WIDTH - 9, y + 13, SLIDER_WIDTH, 4) && button == 0;
+        float trackX = x + 3;
+        float trackW = width - 6;
+        dragging = MathUtil.isHovered(mouseX, mouseY, trackX, y + 18, trackW, 4) && button == 0;
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
@@ -64,30 +61,34 @@ public class ValueComponent extends AbstractSettingComponent {
     }
 
     private float getDifference(int mouseX, MatrixStack matrix) {
-        float percentValue = SLIDER_WIDTH * (setting.getValue() - setting.getMin()) / (setting.getMax() - setting.getMin()),
-                difference = MathHelper.clamp(mouseX - (x + width - SLIDER_WIDTH - 9), 0, SLIDER_WIDTH);
+        float trackX = x + 6;
+        float trackW = width - 12;
+
+        float percentValue = trackW * (setting.getValue() - setting.getMin()) / (setting.getMax() - setting.getMin());
+        float difference = MathHelper.clamp(mouseX - trackX, 0, trackW);
 
         animation = MathUtil.interpolate(animation, percentValue);
 
-        // GameSense/Skeet.cc style slider track
-        rectangle.render(ShapeProperties.create(matrix, x + width - SLIDER_WIDTH - 9, y + 15, SLIDER_WIDTH, 2)
-                .round(0).color(ColorUtil.getSkeetBorder()).build());
+        rectangle.render(ShapeProperties.create(matrix, trackX, y + 20, trackW, 1)
+                .color(0x2D2E414D).build());
 
-        // GameSense/Skeet.cc style slider fill
-        rectangle.render(ShapeProperties.create(matrix, x + width - SLIDER_WIDTH - 9, y + 15, (float) animation, 2)
-                .round(0).color(ColorUtil.getSkeetAccent()).build());
+        rectangle.render(ShapeProperties.create(matrix, trackX, y + 20, (float) animation, 1)
+                .color(ColorUtil.getClientColor(), ColorUtil.getClientColor(), new Color(ColorUtil.getClientColor()).darker().getRGB(), new Color(ColorUtil.getClientColor()).darker().getRGB()).build());
 
-        // GameSense/Skeet.cc style slider handle
-        float v = MathHelper.clamp((float) (x + width - SLIDER_WIDTH + animation), 0, x + width - 4);
-        rectangle.render(ShapeProperties.create(matrix, v - 10, y + 13F, 4, 6)
-                .round(0).color(ColorUtil.getSkeetText()).build());
+        float v = MathHelper.clamp(trackX + (float) animation, trackX, trackX + trackW);
+        rectangle.render(ShapeProperties.create(matrix, v - 2.5F, y + 18.5F, 5, 5)
+                .round(2.5F).color(ColorUtil.getMainGuiColor()).build());
+
+        rectangle.render(ShapeProperties.create(matrix, v - 1.8F, y + 19.2F, 3.6F, 3.6F)
+                .round(1.8F).color(ColorUtil.getClientColor()).build());
 
         return difference;
     }
 
     
     private void changeValue(float difference) {
-        BigDecimal bd = BigDecimal.valueOf((difference / SLIDER_WIDTH) * (setting.getMax() - setting.getMin()) + setting.getMin())
+        float trackW = width - 12;
+        BigDecimal bd = BigDecimal.valueOf((difference / trackW) * (setting.getMax() - setting.getMin()) + setting.getMin())
                 .setScale(2, RoundingMode.HALF_UP);
 
         if (dragging) {

@@ -37,13 +37,11 @@ public class TextComponent extends AbstractSettingComponent {
         this.setting = setting;
     }
 
-    //TODO: Сделать ограничение по символам при тайпинге и сделать чтобы буквы и цифры с _ и сделаю фикс иконки
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         MatrixStack matrix = context.getMatrices();
-        String wrapped = StringUtil.wrap(setting.getDescription(), 70, 12);
         FontRenderer font = Fonts.getSize(12);
-        height = (int) (18 + font.getStringHeight(wrapped) / 3);
+        height = 22;
 
         this.rectX = x + width - 61.5F;
         this.rectY = y + 6.0F;
@@ -54,7 +52,6 @@ public class TextComponent extends AbstractSettingComponent {
                 .round(2).thickness(2).outlineColor(ColorUtil.getOutline()).color(ColorUtil.getGuiRectColor(1)).build());
 
         Fonts.getSize(14, Fonts.Type.BOLD).drawString(context.getMatrices(), setting.getName(), x + 9, y + 6, 0xFFD4D6E1);
-        font.drawString(context.getMatrices(), wrapped, x + 9, y + 15, 0xFF878894);
 
         updateXOffset(font, cursorPosition);
 

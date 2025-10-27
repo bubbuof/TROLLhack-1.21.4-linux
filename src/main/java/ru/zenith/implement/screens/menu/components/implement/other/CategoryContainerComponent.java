@@ -31,17 +31,19 @@ public class CategoryContainerComponent extends AbstractComponent {
     }
 
     
+    private double globalScroll = 0;
+
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        float offset = 0;
+        float offsetX = 0;
 
-        for (CategoryComponent component : categoryComponents) {
-            component.x = x + 6;
-            component.y = y + 50 + offset;
-            component.width = 73;
-            component.height = 17;
+        for (int i = 0; i < categoryComponents.size(); i++) {
+            CategoryComponent component = categoryComponents.get(i);
+            component.x = x + 6 + offsetX;
+            component.y = (float) (y + 12 + globalScroll);
+            component.width = 120;
             component.render(context, mouseX, mouseY, delta);
-            offset += component.height + 2;
+            offsetX += component.width + 6;
         }
     }
 
@@ -77,8 +79,8 @@ public class CategoryContainerComponent extends AbstractComponent {
     
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
-        categoryComponents.forEach(categoryComponent -> categoryComponent.mouseScrolled(mouseX, mouseY, amount));
-        return super.mouseScrolled(mouseX, mouseY, amount);
+        globalScroll += amount * 20;
+        return true;
     }
 
     

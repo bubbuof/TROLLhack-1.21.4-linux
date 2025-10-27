@@ -4,7 +4,6 @@ import net.minecraft.client.gui.DrawContext;
 import ru.kotopushka.compiler.sdk.annotations.Compile;
 import ru.zenith.api.feature.module.setting.implement.BooleanSetting;
 import ru.zenith.api.system.font.Fonts;
-import ru.zenith.common.util.color.ColorUtil;
 import ru.zenith.common.util.other.StringUtil;
 import ru.zenith.implement.screens.menu.components.implement.other.CheckComponent;
 
@@ -21,12 +20,9 @@ public class CheckboxComponent extends AbstractSettingComponent {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        String wrapped = StringUtil.wrap(setting.getDescription(), 100, 12);
-        height = (int) (18 + Fonts.getSize(12).getStringHeight(wrapped) / 3);
+        height = 22;
 
-        // GameSense/Skeet.cc style text colors
-        Fonts.getSize(14, BOLD).drawString(context.getMatrices(), setting.getName(), x + 9, y + 6, ColorUtil.getSkeetText());
-        Fonts.getSize(12).drawString(context.getMatrices(), wrapped, x + 9, y + 15, ColorUtil.getSkeetTextSecondary());
+        Fonts.getSize(14, BOLD).drawString(context.getMatrices(), setting.getName(), x + 9, y + 10, 0xFFD4D6E1);
 
         ((CheckComponent) checkComponent.position(x + width - 16, y + 7.5F))
                 .setRunnable(() -> setting.setValue(!setting.isValue()))

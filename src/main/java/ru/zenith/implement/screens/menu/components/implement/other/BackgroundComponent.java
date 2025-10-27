@@ -20,36 +20,14 @@ public class BackgroundComponent extends AbstractComponent {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         MatrixStack matrix = context.getMatrices();
 
-        // Main background with enhanced GameSense/Skeet.cc style
-        rectangle.render(ShapeProperties.create(matrix, x, y, width, height).round(2).softness(0.5f).thickness(1).quality(50)
-                .outlineColor(ColorUtil.getSkeetBorder()).color(ColorUtil.getSkeetBackground()).build());
+        rectangle.render(ShapeProperties.create(matrix, x, y, width, height).round(6).softness(1).thickness(2).quality(50)
+                .outlineColor(ColorUtil.getOutline()).color(ColorUtil.getMainGuiColor()).build());
 
-        // Enhanced top bar with gradient effect
-        rectangle.render(ShapeProperties.create(matrix, x, y, width, 3)
-                .color(ColorUtil.getSkeetAccent(), ColorUtil.getSkeetAccent(), 
-                       ColorUtil.getSkeetAccent(0.8f), ColorUtil.getSkeetAccent(0.8f)).build());
+        rectangle.render(ShapeProperties.create(context.getMatrices(), x + 85, y, 0.5F, height)
+                .color(ColorUtil.getOutline(0.5F, 1)).build());
+        rectangle.render(ShapeProperties.create(context.getMatrices(), x + 85.5F, y + 28, width - 85.5F, 0.5F)
+                .color(ColorUtil.getOutline(0.5F, 1)).build());
 
-        // Category sidebar with subtle gradient
-        rectangle.render(ShapeProperties.create(matrix, x, y, 85, height).round(2, 0, 0, 2)
-                .color(ColorUtil.getSkeetSecondary(), ColorUtil.getSkeetSecondary(),
-                       ColorUtil.getSkeetBackground(), ColorUtil.getSkeetBackground()).build());
-
-        // Enhanced vertical separator with glow effect
-        rectangle.render(ShapeProperties.create(context.getMatrices(), x + 85, y, 1F, height)
-                .color(ColorUtil.getSkeetBorder()).build());
-        rectangle.render(ShapeProperties.create(context.getMatrices(), x + 84.5f, y, 0.5F, height)
-                .color(ColorUtil.getSkeetAccent(0.3f)).build());
-        
-        // Enhanced horizontal separator under header
-        rectangle.render(ShapeProperties.create(context.getMatrices(), x + 85, y + 28, width - 85, 1F)
-                .color(ColorUtil.getSkeetBorder()).build());
-        rectangle.render(ShapeProperties.create(context.getMatrices(), x + 85, y + 27.5f, width - 85, 0.5F)
-                .color(ColorUtil.getSkeetAccent(0.2f)).build());
-
-        // Category title with enhanced styling
-        Fonts.getSize(16, Fonts.Type.BOLD).drawString(matrix, MenuScreen.INSTANCE.getCategory().getReadableName(), x + 95, y + 13, ColorUtil.getSkeetText());
-        
-        // Subtle shadow effect for title
-        Fonts.getSize(16, Fonts.Type.BOLD).drawString(matrix, MenuScreen.INSTANCE.getCategory().getReadableName(), x + 95.5f, y + 13.5f, ColorUtil.getSkeetBackground());
+        Fonts.getSize(16).drawString(matrix, MenuScreen.INSTANCE.getCategory().getReadableName(), x + 95, y + 13, 0xFFD4D6E1);
     }
 }

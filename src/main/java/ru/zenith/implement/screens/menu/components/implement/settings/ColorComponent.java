@@ -27,11 +27,9 @@ public class ColorComponent extends AbstractSettingComponent {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         MatrixStack matrix = context.getMatrices();
 
-        String wrapped = StringUtil.wrap(setting.getDescription(), 100, 12);
-        height = (int) (18 + Fonts.getSize(12).getStringHeight(wrapped) / 3);
+        height = 22;
 
         Fonts.getSize(14, BOLD).drawString(matrix, setting.getName(), x + 9, y + 6, 0xFFD4D6E1);
-        Fonts.getSize(12).drawString(matrix, wrapped, x + 9, y + 15, 0xFF878894);
 
         rectangle.render(ShapeProperties.create(matrix, x + width - 14, y + 7, 7, 7)
                 .round(3.5F).color(setting.getColor()).build());

@@ -32,9 +32,8 @@ public class BindComponent extends AbstractSettingComponent {
         String bindName = StringUtil.getBindName(setting.getKey());
         String name = binding ? "(" + bindName + ") ..." : bindName;
         float stringWidth = Fonts.getSize(13, BOLD).getStringWidth(name) - 2;
-        String wrapped = StringUtil.wrap(setting.getDescription(), (int) (width - stringWidth - 28), 12);
 
-        height = (int) (18 + Fonts.getSize(12).getStringHeight(wrapped) / 3);
+        height = 22;
 
         rectangle.render(ShapeProperties.create(matrix, x + width - stringWidth - 17, y + 5, stringWidth + 10, 12)
                 .round(2).thickness(2).outlineColor(ColorUtil.getOutline()).color(ColorUtil.getGuiRectColor(1F)).build());
@@ -43,7 +42,6 @@ public class BindComponent extends AbstractSettingComponent {
 
         Fonts.getSize(13, BOLD).drawString(matrix, name, x + width - 12 - stringWidth - 1, y + 9.5, bindingColor);
         Fonts.getSize(14, BOLD).drawString(matrix, setting.getName(), x + 9, y + 6, 0xFFD4D6E1);
-        Fonts.getSize(12).drawString(matrix, wrapped, x + 9, y + 15, 0xFF878894);
     }
 
 

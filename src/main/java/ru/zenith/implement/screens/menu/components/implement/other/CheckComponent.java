@@ -35,37 +35,22 @@ public class CheckComponent extends AbstractComponent {
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         MatrixStack matrix = context.getMatrices();
-        boolean isHovered = MathUtil.isHovered(mouseX, mouseY, x, y, 8, 8);
 
         alphaAnimation.setDirection(state ? FORWARDS : BACKWARDS);
         stencilAnimation.setDirection(state ? FORWARDS : BACKWARDS);
 
-        // Enhanced GameSense/Skeet.cc style checkbox
-        int stateColor = state ? ColorUtil.getSkeetAccent() : 
-                        isHovered ? ColorUtil.getSkeetHover() : ColorUtil.getSkeetSecondary();
-        int outlineStateColor = state ? ColorUtil.getSkeetAccent() : 
-                               isHovered ? ColorUtil.getSkeetAccent(0.5f) : ColorUtil.getSkeetBorder();
+        int stateColor = state ? ColorUtil.getClientColor() : ColorUtil.getGuiRectColor(1);
+        int outlineStateColor = state ? ColorUtil.getClientColor() : ColorUtil.getOutline();
 
         int opacity = alphaAnimation.getOutput().intValue();
 
-        // Main checkbox with enhanced styling
         rectangle.render(ShapeProperties.create(matrix, x, y, 8, 8)
-                .round(1).thickness(1).softness(0.3f).outlineColor(outlineStateColor)
-                .color(MathUtil.applyOpacity(stateColor, opacity)).build());
-
-        // Glow effect when enabled
-        if (state) {
-            rectangle.render(ShapeProperties.create(matrix, x - 0.5f, y - 0.5f, 9, 9)
-                    .round(1.5f).thickness(0.5f).softness(1f)
-                    .color(MathUtil.applyOpacity(ColorUtil.getSkeetAccent(), opacity / 4)).build());
-        }
+                .round(1.5F).thickness(2).softness(0.5F).outlineColor(outlineStateColor).color(MathUtil.applyOpacity(stateColor, opacity)).build());
 
         ScissorManager scissor = Main.getInstance().getScissorManager();
         scissor.push(matrix.peek().getPositionMatrix(), x, (float) window.getScaledHeight() / 2 - 96, stencilAnimation.getOutput().intValue(), 220);
 
-        // Enhanced checkmark
-        image.setTexture("textures/check.png").render(ShapeProperties.create(matrix, x + 2, y + 2.5, 4, 3)
-                .color(MathUtil.applyOpacity(ColorUtil.getSkeetText(), opacity)).build());
+        image.setTexture("textures/check.png").render(ShapeProperties.create(matrix, x + 2, y + 2.5, 4, 3).color(MathUtil.applyOpacity(0xFFFFFFFF, opacity)).build());
 
         scissor.pop();
     }

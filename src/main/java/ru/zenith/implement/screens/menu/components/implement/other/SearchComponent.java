@@ -37,9 +37,8 @@ public class SearchComponent extends AbstractComponent {
         width = 80;
         height = 15;
 
-        // GameSense/Skeet.cc style search box
         rectangle.render(ShapeProperties.create(matrix, x, y, width, height)
-                .round(0).thickness(1).softness(0).outlineColor(ColorUtil.getSkeetBorder()).color(ColorUtil.getSkeetSecondary()).build());
+                .round(2.5F).thickness(2).softness(0.5F).outlineColor(ColorUtil.getOutline()).color(ColorUtil.getGuiRectColor(0.5F)).build());
 
         image.setTexture("textures/search.png").render(ShapeProperties.create(matrix, x + width - 12, y + 5, 5F, 5F).build());
 
@@ -56,16 +55,14 @@ public class SearchComponent extends AbstractComponent {
                 float selectionXEnd = x + 4 - xOffset + font.getStringWidth(text.substring(0, end));
                 float selectionWidth = selectionXEnd - selectionXStart;
 
-                // GameSense/Skeet.cc style selection highlight
-                rectangle.render(ShapeProperties.create(matrix, selectionXStart, y + (height / 2) - 4, selectionWidth, 8).color(ColorUtil.getSkeetAccent(0.5f)).build());
+                rectangle.render(ShapeProperties.create(matrix, selectionXStart, y + (height / 2) - 4, selectionWidth, 8).color(0xFF5585E8).build());
             }
         }
 
       /*  if (!text.isEmpty() && typing) Main.getInstance().getModuleProvider().getModules().stream().filter(mod -> mod.getVisibleName().startsWith(text)).findFirst()
                 .ifPresent(module -> font.drawString(context.getMatrices(), module.getVisibleName(), x + 4, y + (height / 2) - 1.0F, 0xFF878894)); */
 
-        // GameSense/Skeet.cc style text colors
-        font.drawString(context.getMatrices(), displayText, x + 4, y + (height / 2) - 1.0F, typing ? ColorUtil.getSkeetText() : ColorUtil.getSkeetTextSecondary());
+        font.drawString(context.getMatrices(), displayText, x + 4, y + (height / 2) - 1.0F, typing ? -1 : 0xFF878894);
 
         scissor.pop();
         long currentTime = System.currentTimeMillis();
@@ -73,8 +70,7 @@ public class SearchComponent extends AbstractComponent {
 
         if (focused && (selectionStart == -1 || selectionStart == selectionEnd)) {
             float cursorX = font.getStringWidth(text.substring(0, cursorPosition));
-            // GameSense/Skeet.cc style cursor
-            rectangle.render(ShapeProperties.create(matrix, x + 4 - xOffset + cursorX, y + (height / 2) - 3.5F, 0.5F, 7).color(ColorUtil.getSkeetAccent()).build());
+            rectangle.render(ShapeProperties.create(matrix, x + 4 - xOffset + cursorX, y + (height / 2) - 3.5F, 0.5F, 7).color(-1).build());
         }
 
         if (dragging) {

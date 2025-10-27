@@ -51,30 +51,31 @@ public class MultiSelectComponent extends AbstractSettingComponent {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         MatrixStack matrices = context.getMatrices();
 
-        String wrapped = StringUtil.wrap(setting.getDescription(), 45, 12);
-        height = (int) (18 + Fonts.getSize(12).getStringHeight(wrapped) / 3);
-
         List<String> fullSettingsList = setting.getList();
 
-        this.dropdownListX = x + width - 75;
-        this.dropDownListY = y + 20;
-        this.dropDownListWidth = 66;
+        float innerX = x + 3;
+        float innerW = width - 6;
+
+        this.dropdownListX = innerX;
+        this.dropDownListY = y + 10 + 14 + 2;
+        this.dropDownListWidth = innerW;
         this.dropDownListHeight = fullSettingsList.size() * 12;
+
+        height = 28 + (open ? (int) dropDownListHeight + 2 : 0);
 
         alphaAnimation.setDirection(open ? Direction.FORWARDS : Direction.BACKWARDS);
 
-        renderSelected(matrices);
+        renderSelected(matrices, innerX, innerW);
         if (!alphaAnimation.isFinished(Direction.BACKWARDS)) renderSelectList(context, mouseX, mouseY, delta);
 
-        Fonts.getSize(14, BOLD).drawString(matrices, setting.getName(), x + 9, y + 6, 0xFFD4D6E1);
-        Fonts.getSize(12).drawString(matrices, wrapped, x + 9, y + 15, 0xFF878894);
+        Fonts.getSize(14, BOLD).drawString(matrices, setting.getName(), (int) (x + 4), (int) (y + 3), 0xFFD4D6E1);
     }
 
     
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button == 0) {
-            if (MathUtil.isHovered(mouseX, mouseY, x + width - 75, y + 4, 66, 14)) {
+        if (button == 0 || button == 1) {
+            if (MathUtil.isHovered(mouseX, mouseY, dropdownListX, y + 10, dropDownListWidth, 14)) {
                 open = !open;
             } else if (open && !isHoveredList(mouseX, mouseY)) {
                 open = false;
@@ -94,29 +95,12 @@ public class MultiSelectComponent extends AbstractSettingComponent {
     }
 
     
-    private void renderSelected(MatrixStack matrix) {
-        FontRenderer font = Fonts.getSize(12);
-        int x1 = (int) (x + width - 72);
-
-        rectangle.render(ShapeProperties.create(matrix, x1 - 3, y + 4, 66, 14)
-                .round(2).thickness(2).softness(0.5F).outlineColor(ColorUtil.getOutline()).color(ColorUtil.getGuiRectColor(0.5F)).build());
+    private void renderSelected(MatrixStack matrix, float innerX, float innerW) {
+        rectangle.render(ShapeProperties.create(matrix, innerX, y + 10, innerW, 14)
+                .round(2).thickness(2).outlineColor(ColorUtil.getOutline()).color(ColorUtil.getGuiRectColor(1)).build());
 
         String selectedName = String.join(", ", setting.getSelected());
-
-        float offset = 64;
-
-        ScissorManager scissor = Main.getInstance().getScissorManager();
-        scissor.push(matrix.peek().getPositionMatrix(), x1 - 2, (float) window.getScaledHeight() / 2 - 96, 64, 220);
-        font.drawStringWithScroll(matrix, selectedName, x1, y + 10, offset, ColorUtil.getText());
-        scissor.pop();
-
-        if (font.getStringWidth(selectedName) - offset > 0) {
-            rectangle.render(ShapeProperties.create(matrix, x + width - 13.75F, y + 5, 4, 12)
-                    .round(3).color(ColorUtil.getGuiRectColor(0), ColorUtil.getGuiRectColor(0), ColorUtil.getGuiRectColor(1), ColorUtil.getGuiRectColor(1)).build());
-
-            rectangle.render(ShapeProperties.create(matrix, x1 - 2.25F, y + 5, 4, 12)
-                    .round(3).color(ColorUtil.getGuiRectColor(1), ColorUtil.getGuiRectColor(1), ColorUtil.getGuiRectColor(0), ColorUtil.getGuiRectColor(0)).build());
-        }
+        Fonts.getSize(12, BOLD).drawString(matrix, selectedName, (int) (innerX + 3), (int) (y + 17 - 1), ColorUtil.getText());
     }
 
     

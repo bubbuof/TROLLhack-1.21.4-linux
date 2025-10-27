@@ -51,30 +51,31 @@ public class SelectComponent extends AbstractSettingComponent {
         MatrixStack matrices = context.getMatrices();
         Matrix4f positionMatrix = matrices.peek().getPositionMatrix();
 
-        String wrapped = StringUtil.wrap(setting.getDescription(), 45, 12);
-        height = (int) (18 + Fonts.getSize(12).getStringHeight(wrapped) / 3);
-
         List<String> fullSettingsList = setting.getList();
 
-        this.dropdownListX = x + width - 75;
-        this.dropDownListY = y + 20;
-        this.dropDownListWidth = 66;
+        float innerX = x + 3;
+        float innerW = width - 6;
+
+        this.dropdownListX = innerX;
+        this.dropDownListY = y + 15 + 12;
+        this.dropDownListWidth = innerW;
         this.dropDownListHeight = fullSettingsList.size() * 12;
+
+        height = 28 + (open ? (int) dropDownListHeight + 2 : 0);
 
         alphaAnimation.setDirection(open ? Direction.FORWARDS : Direction.BACKWARDS);
 
-        renderSelected(matrices);
+        renderSelected(matrices, innerX, innerW);
         if (!alphaAnimation.isFinished(Direction.BACKWARDS)) renderSelectList(context, mouseX, mouseY, delta);
 
-        Fonts.getSize(14, BOLD).drawString(matrices, setting.getName(), x + 9, y + 6, 0xFFD4D6E1);
-        Fonts.getSize(12).drawString(matrices, wrapped, x + 9, y + 15, 0xFF878894);
+        Fonts.getSize(14, BOLD).drawString(matrices, setting.getName(), (int) (x + 6), (int) (y + 2), 0xFFD4D6E1);
     }
 
     @Compile
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button == 0) {
-            if (MathUtil.isHovered(mouseX, mouseY, x + width - 75, y + 4, 66, 14)) {
+        if (button == 0 || button == 1) {
+            if (MathUtil.isHovered(mouseX, mouseY, dropdownListX, y + 11, dropDownListWidth, 14)) {
                 open = !open;
             } else if (open && !isHoveredList(mouseX, mouseY)) {
                 open = false;
@@ -94,16 +95,13 @@ public class SelectComponent extends AbstractSettingComponent {
     }
 
 
-    private void renderSelected(MatrixStack matrices) {
-        rectangle.render(ShapeProperties.create(matrices, x + width - 75, y + 4, 66, 14)
+    private void renderSelected(MatrixStack matrices, float innerX, float innerW) {
+        rectangle.render(ShapeProperties.create(matrices, innerX, y + 11, innerW, 14)
                 .round(2).thickness(2).outlineColor(ColorUtil.getOutline()).color(ColorUtil.getGuiRectColor(1)).build());
 
         String selectedName = String.join(", ", setting.getSelected());
 
-        Fonts.getSize(12, BOLD).drawString(matrices, selectedName, x + width - 75 + 3, y + 10, 0xFFD4D6E1);
-
-        rectangle.render(ShapeProperties.create(matrices, x + width - 20, y + 5, 10, 12)
-                .round(3).color(ColorUtil.getGuiRectColor(0), ColorUtil.getGuiRectColor(0), ColorUtil.getGuiRectColor(1), ColorUtil.getGuiRectColor(1)).build());
+        Fonts.getSize(12, BOLD).drawString(matrices, selectedName, (int) (innerX + 3), (int) (y + 17), 0xFFD4D6E1);
     }
 
     private void renderSelectList(DrawContext context, int mouseX, int mouseY, float delta) {

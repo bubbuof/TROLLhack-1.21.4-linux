@@ -25,18 +25,16 @@ public class GroupComponent extends AbstractSettingComponent {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        String wrapped = StringUtil.wrap(setting.getDescription(), 100, 12);
-        height = (int) (18 + Fonts.getSize(12).getStringHeight(wrapped) / 3);
+        height = 20;
 
-        Fonts.getSize(14, BOLD).drawString(context.getMatrices(), setting.getName(), x + 9, y + 6, 0xFFD4D6E1);
-        Fonts.getSize(12).drawString(context.getMatrices(), wrapped, x + 9, y + 15, 0xFF878894);
+        Fonts.getSize(14, BOLD).drawString(context.getMatrices(), setting.getName(), x + 6, y +9, 0xFFD4D6E1);
 
-        ((CheckComponent) checkComponent.position(x + width - 16, y + 7.5F))
+        ((CheckComponent) checkComponent.position(x + width - 16, y + 6.5F))
                 .setRunnable(() -> setting.setValue(!setting.isValue()))
                 .setState(setting.isValue())
                 .render(context, mouseX, mouseY, delta);
 
-        ((SettingComponent) settingComponent.position(x + width - 28, y + 8))
+        ((SettingComponent) settingComponent.position(x + width - 28, y + 7))
                 .setRunnable(() -> spawnWindow(mouseX, mouseY))
                 .render(context, mouseX, mouseY, delta);
     }
@@ -44,6 +42,10 @@ public class GroupComponent extends AbstractSettingComponent {
     @Compile
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (button == 1 && ru.zenith.common.util.math.MathUtil.isHovered(mouseX, mouseY, x, y, width, height)) {
+            spawnWindow((int) mouseX, (int) mouseY);
+        }
+
         checkComponent.mouseClicked(mouseX, mouseY, button);
         settingComponent.mouseClicked(mouseX, mouseY, button);
         return super.mouseClicked(mouseX, mouseY, button);

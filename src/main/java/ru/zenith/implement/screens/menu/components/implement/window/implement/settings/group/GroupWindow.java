@@ -45,7 +45,6 @@ public class GroupWindow extends AbstractWindow {
 
         height = MathHelper.clamp(getComponentHeight(), 0, 200);
 
-        //Window background
 
         rectangle.render(ShapeProperties.create(matrix, x, y, width, height)
                 .round(4).thickness(2).softness(1).outlineColor(ColorUtil.getOutline()).color(ColorUtil.getGuiRectColor(1)).build());

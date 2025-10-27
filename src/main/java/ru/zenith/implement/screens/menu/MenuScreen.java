@@ -30,9 +30,6 @@ import static ru.zenith.api.system.animation.Direction.FORWARDS;
 public class MenuScreen extends Screen implements QuickImports {
     public static MenuScreen INSTANCE = new MenuScreen();
     private final List<AbstractComponent> components = new ArrayList<>();
-    private final BackgroundComponent backgroundComponent = new BackgroundComponent();
-    private final UserComponent userComponent = new UserComponent();
-    private final SearchComponent searchComponent = new SearchComponent();
     private final CategoryContainerComponent categoryContainerComponent = new CategoryContainerComponent();
     public final Animation animation = new DecelerateAnimation().setMs(200).setValue(1);
     public ModuleCategory category = ModuleCategory.COMBAT;
@@ -41,7 +38,7 @@ public class MenuScreen extends Screen implements QuickImports {
     public void initialize() {
         animation.setDirection(FORWARDS);
         categoryContainerComponent.initializeCategoryComponents();
-        components.addAll(Arrays.asList(backgroundComponent, userComponent, searchComponent, categoryContainerComponent));
+        components.addAll(Arrays.asList(categoryContainerComponent));
     }
 
     public MenuScreen() {
@@ -58,19 +55,11 @@ public class MenuScreen extends Screen implements QuickImports {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        x = window.getScaledWidth() / 2 - 200;
-        y = window.getScaledHeight() / 2 - 125;
-        width = 400;
-        height = 250;
+        x = window.getScaledWidth() / 2 - 318;
+        y = window.getScaledHeight() / 2 - 160;
+        width = 636;
+        height = 320;
 
-        // GameSense/Skeet.cc style background overlay
-        rectangle.render(ShapeProperties.create(context.getMatrices(), 0, 0, window.getScaledWidth(), window.getScaledHeight())
-                .color(MathUtil.applyOpacity(0xFF000000, 150 * getScaleAnimation())).build());
-
-        backgroundComponent.position(x, y).size(width, height);
-        userComponent.position(x, y + height);
-
-        searchComponent.position(x + 300, y + 6);
         categoryContainerComponent.position(x, y);
 
         MathUtil.scale(context.getMatrices(), x + (float) width / 2, y + (float) height / 2, getScaleAnimation(), () -> {
@@ -93,35 +82,48 @@ public class MenuScreen extends Screen implements QuickImports {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (!windowManager.mouseClicked(mouseX, mouseY, button)) {
-            components.forEach(component -> component.mouseClicked(mouseX, mouseY, button));
+        double[] p = unscale(mouseX, mouseY);
+        if (windowManager.mouseClicked(p[0], p[1], button)) return true;
+        boolean handled = false;
+        for (AbstractComponent component : components) {
+            handled |= component.mouseClicked(p[0], p[1], button);
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return handled || super.mouseClicked(mouseX, mouseY, button);
     }
 
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        components.forEach(component -> component.mouseReleased(mouseX, mouseY, button));
-        windowManager.mouseReleased(mouseX, mouseY, button);
-        return super.mouseReleased(mouseX, mouseY, button);
+        double[] p = unscale(mouseX, mouseY);
+        boolean handled = false;
+        for (AbstractComponent component : components) {
+            handled |= component.mouseReleased(p[0], p[1], button);
+        }
+        handled |= windowManager.mouseReleased(p[0], p[1], button);
+        return handled || super.mouseReleased(mouseX, mouseY, button);
     }
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
-        if (!windowManager.mouseDragged(mouseX, mouseY, button, deltaX, deltaY)) {
-            components.forEach(component -> component.mouseDragged(mouseX, mouseY, button, deltaX, deltaY));
+        double[] p = unscale(mouseX, mouseY);
+        if (windowManager.mouseDragged(p[0], p[1], button, deltaX, deltaY)) return true;
+        boolean handled = false;
+        for (AbstractComponent component : components) {
+            handled |= component.mouseDragged(p[0], p[1], button, deltaX, deltaY);
         }
-        return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
+        return handled || super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
     }
 
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontal, double vertical) {
-        if (!windowManager.mouseScrolled(mouseX, mouseY, vertical)) {
-            components.forEach(component -> component.mouseScrolled(mouseX, mouseY, vertical));
+        double[] p = unscale(mouseX, mouseY);
+        if (windowManager.mouseScrolled(p[0], p[1], vertical)) return true;
+        boolean handled = false;
+        for (AbstractComponent component : components) {
+            handled |= component.mouseScrolled(p[0], p[1], vertical);
         }
-        return super.mouseScrolled(mouseX, mouseY, horizontal, vertical);
+        return handled || super.mouseScrolled(mouseX, mouseY, horizontal, vertical);
     }
 
 
@@ -133,19 +135,23 @@ public class MenuScreen extends Screen implements QuickImports {
             return true;
         }
 
-        if (!windowManager.keyPressed(keyCode, scanCode, modifiers)) {
-            components.forEach(component -> component.keyPressed(keyCode, scanCode, modifiers));
+        if (windowManager.keyPressed(keyCode, scanCode, modifiers)) return true;
+        boolean handled = false;
+        for (AbstractComponent component : components) {
+            handled |= component.keyPressed(keyCode, scanCode, modifiers);
         }
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return handled || super.keyPressed(keyCode, scanCode, modifiers);
     }
 
 
     @Override
     public boolean charTyped(char chr, int modifiers) {
-        if (!windowManager.charTyped(chr, modifiers)) {
-            components.forEach(component -> component.charTyped(chr, modifiers));
+        if (windowManager.charTyped(chr, modifiers)) return true;
+        boolean handled = false;
+        for (AbstractComponent component : components) {
+            handled |= component.charTyped(chr, modifiers);
         }
-        return super.charTyped(chr, modifiers);
+        return handled || super.charTyped(chr, modifiers);
     }
 
 
@@ -161,5 +167,15 @@ public class MenuScreen extends Screen implements QuickImports {
             TextComponent.typing = false;
             super.close();
         }
+    }
+
+    private double[] unscale(double mx, double my) {
+        float s = getScaleAnimation();
+        if (s == 0) s = 1f;
+        float cx = x + (float) width / 2f;
+        float cy = y + (float) height / 2f;
+        double ux = (mx - cx) / s + cx;
+        double uy = (my - cy) / s + cy;
+        return new double[]{ux, uy};
     }
 }

@@ -39,19 +39,8 @@ public class UserComponent extends AbstractComponent {
 
         ScissorManager scissor = Main.getInstance().getScissorManager();
         scissor.push(positionMatrix, x + 5.5F, y - 29.5F, 74, 22);
-
-        
-        String username = Profile.getUsername();
-        if (username != null) {
-            Fonts.getSize(12).drawString(matrix, username, x + 30, y - 21, 0xFFD4D6E1);
-        }
-
-        
-        String userRole = StringUtil.getUserRole();
-        if (userRole != null) {
-            Fonts.getSize(10).drawGradientString(matrix, userRole, x + 30, y - 14.5, ColorUtil.fade(0), ColorUtil.fade(60));
-        }
-
+        Fonts.getSize(12).drawString(matrix, Profile.getUsername(), x + 30, y - 21, 0xFFD4D6E1);
+        Fonts.getSize(10).drawGradientString(matrix, StringUtil.getUserRole(), x + 30, y - 14.5, ColorUtil.fade(0), ColorUtil.fade(60));
         scissor.pop();
     }
 

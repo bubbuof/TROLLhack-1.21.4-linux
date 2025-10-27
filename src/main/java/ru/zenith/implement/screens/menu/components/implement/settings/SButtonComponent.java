@@ -4,7 +4,6 @@ import net.minecraft.client.gui.DrawContext;
 import ru.kotopushka.compiler.sdk.annotations.Compile;
 import ru.zenith.api.feature.module.setting.implement.ButtonSetting;
 import ru.zenith.api.system.font.Fonts;
-import ru.zenith.common.util.other.StringUtil;
 import ru.zenith.implement.screens.menu.components.implement.other.ButtonComponent;
 
 import static ru.zenith.api.system.font.Fonts.Type.BOLD;
@@ -20,12 +19,9 @@ public class SButtonComponent extends AbstractSettingComponent {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        var wrapped = StringUtil.wrap(setting.getDescription(), 80, 12);
-
-        height = (int) (18 + Fonts.getSize(12).getStringHeight(wrapped) / 3);
+        height = 22;
 
         Fonts.getSize(14, BOLD).drawString(context.getMatrices(), setting.getName(), x + 9, y + 6, 0xFFD4D6E1);
-        Fonts.getSize(12).drawString(context.getMatrices(), wrapped, x + 9, y + 15, 0xFF878894);
 
         ((ButtonComponent) buttonComponent.setText("Click on me")
                 .setRunnable(setting.getRunnable())
