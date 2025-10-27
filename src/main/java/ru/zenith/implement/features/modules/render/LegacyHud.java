@@ -120,7 +120,7 @@ public class LegacyHud extends Module {
 
         // Watermark
         if (waterMark.isValue()) {
-            drawText(context, "vega33hack v1.11", 2, waterMarkY.getInt());
+            drawText(context, "vega33hack v1.12", 2, waterMarkY.getInt());
         }
 
         int j = (mc.currentScreen instanceof ChatScreen && !renderingUp.isValue()) ? 14 : 0;
