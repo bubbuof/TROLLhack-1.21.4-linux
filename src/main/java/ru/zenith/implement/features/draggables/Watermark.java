@@ -32,7 +32,7 @@ public class Watermark extends AbstractDraggable {
         int imageSize = 32;
         
         // Text
-        String text = "88HACK";
+        String text = "88HACK v1.13";
         float textWidth = font.getStringWidth(text);
         float textHeight = font.getStringHeight(text);
         

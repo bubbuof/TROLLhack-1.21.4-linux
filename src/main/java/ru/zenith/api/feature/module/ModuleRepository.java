@@ -21,6 +21,7 @@ public class ModuleRepository {
 
     public void setup() {
         register(
+                new LongJump(),
                 new ServerHelper(),
                 new WaterSpeed(),
                 new ClickAction(),
