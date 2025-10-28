@@ -21,7 +21,7 @@ public class ScoreBoard extends AbstractDraggable {
     private ScoreboardObjective objective;
 
     public ScoreBoard() {
-        super("Score Board", 10, 100, 100, 120,true);
+        super("Score Board", 10, 100, 100, 120, true);
     }
 
     @Override
@@ -38,26 +38,46 @@ public class ScoreBoard extends AbstractDraggable {
     @Override
     public void drawDraggable(DrawContext context) {
         MatrixStack matrix = context.getMatrices();
-        FontRenderer font = Fonts.getSize(16);
-        MutableText text = Text.empty();
+        FontRenderer font = Fonts.getSize(14, Fonts.Type.DEFAULT);
+        FontRenderer fontTitle = Fonts.getSize(14, Fonts.Type.DEFAULT);
+
         Text mainText = objective != null ? objective.getDisplayName() : Text.empty();
 
-        scoreboardEntries.forEach(entry -> text.append(Team.decorateName(Objects.requireNonNull(mc.world).getScoreboard().getScoreHolderTeam(entry.owner()), entry.name())).append("\n"));
-
         int padding = 3;
-        int offsetText = 14;
-        int width = (int) Math.max(font.getStringWidth(text) + padding * 2 + 1,100);
+        int titleHeight = 14;
 
-        blur.render(ShapeProperties.create(matrix,getX(),getY(),getWidth(),offsetText)
-                .round(4,0,4,0).thickness(2).softness(1).outlineColor(ColorUtil.getOutline()).color(ColorUtil.getRectDarker(0.9F)).build());
-        blur.render(ShapeProperties.create(matrix,getX(),getY() + offsetText - 0.5F,getWidth(),getHeight() - offsetText)
-                .quality(40).round(0,4,0,4).thickness(2).softness(1).outlineColor(ColorUtil.getOutline()).color(ColorUtil.getRect(0.7F)).build());
+        // GameSense style background like CoolDowns
+        rectangle.render(ShapeProperties.create(matrix, getX(), getY(), getWidth(), getHeight())
+                .color(ColorUtil.getColor(15, 15, 15, 200)).build());
 
-        font.drawText(matrix, mainText, (int) (getX() + (getWidth() - font.getStringWidth(mainText)) / 2),getY() + padding + 1.5F);
-        font.drawText(matrix, text, getX() + padding,getY() + offsetText + padding);
+        // Top accent line like CoolDowns
+        rectangle.render(ShapeProperties.create(matrix, getX(), getY(), getWidth(), 1)
+                .color(ColorUtil.getClientColor()).build());
 
-        if (getX() > mc.getWindow().getScaledWidth() / 2) setX(getX() + getWidth() - width);
-        setWidth(width);
-        setHeight((int) (font.getStringHeight(text) / 2.16 + offsetText + padding));
+        // Calculate width based on content
+        int maxWidth = 100;
+        for (ScoreboardEntry entry : scoreboardEntries) {
+            Text entryText = Team.decorateName(mc.world.getScoreboard().getScoreHolderTeam(entry.owner()), entry.name());
+            int entryWidth = (int) font.getStringWidth(entryText) + padding * 2;
+            maxWidth = Math.max(maxWidth, entryWidth);
+        }
+
+        int titleWidth = (int) fontTitle.getStringWidth(mainText) + padding * 2;
+        maxWidth = Math.max(maxWidth, titleWidth);
+
+        // Draw title centered
+        float centerX = getX() + getWidth() / 2.0F;
+        fontTitle.drawString(matrix, mainText.getString().toLowerCase(), (int) (centerX - fontTitle.getStringWidth(mainText.getString().toLowerCase()) / 2.0F), getY() + 4, ColorUtil.WHITE);
+
+        // Draw scoreboard entries
+        int offset = titleHeight;
+        for (ScoreboardEntry entry : scoreboardEntries) {
+            Text entryText = Team.decorateName(mc.world.getScoreboard().getScoreHolderTeam(entry.owner()), entry.name());
+            font.drawText(matrix, entryText, (double) (getX() + padding), (double) (getY() + offset));
+            offset += 10;
+        }
+
+        setWidth(maxWidth);
+        setHeight(offset + padding);
     }
 }

@@ -22,7 +22,7 @@ import ru.zenith.implement.events.item.SwingDurationEvent;
 public class HandTweaks extends Module {
 
     SelectSetting swingType = new SelectSetting("Swing Type", "Select the type of swing")
-            .value("Swipe", "Down", "Smooth", "Power", "Feast");
+            .value("Swipe", "Down", "Smooth", "Power", "Feast", "Shift");
 
     ValueSetting mainHandXSetting = new ValueSetting("Main Hand X", "Main Hand X value setting")
             .setValue(0.0F).range(-1.0F, 1.0F);
@@ -71,6 +71,7 @@ public class HandTweaks extends Module {
             float sin1 = MathHelper.sin(swingProgress * swingProgress * (float) Math.PI);
             float sin2 = MathHelper.sin(MathHelper.sqrt(swingProgress) * (float) Math.PI);
             float sinSmooth = (float) (Math.sin(swingProgress * Math.PI) * 0.5F);
+
             switch (swingType.getSelected()) {
                 case "Swipe" -> {
                     matrix.translate(0.56F * i, -0.32F, -0.72F);
@@ -114,6 +115,18 @@ public class HandTweaks extends Module {
                     matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(30 * i));
                     matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-80));
                     matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(35 * i));
+                }
+                case "Shift" -> {
+                    // Сдвиг анимация
+                    matrix.translate((float) i * 0.56F, -0.32F, -0.72F);
+                    matrix.translate(0, 0, -1.5f * sin2 / 5.0f);
+                    matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(80));
+                    matrix.multiply(RotationAxis.NEGATIVE_Z.rotationDegrees(45));
+                    matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-10));
+                    matrix.translate(0, 0, -0.4f * sin2);
+                    matrix.multiply(RotationAxis.NEGATIVE_X.rotationDegrees(sin2 * -100));
+                    matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(sin2 * -180));
+                    matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-70));
                 }
             }
             e.cancel();

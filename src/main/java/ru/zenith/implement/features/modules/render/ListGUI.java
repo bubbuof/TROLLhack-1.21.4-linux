@@ -10,7 +10,7 @@ import ru.zenith.implement.screens.listgui.ListGuiScreen;
 public class ListGUI extends Module {
     
     public ListGUI() {
-        super("ListGUI", "Alternative list-style ClickGUI (Press P)", ModuleCategory.RENDER);
+        super("ListGUI", "ListGUI", ModuleCategory.RENDER);
         setKey(GLFW.GLFW_KEY_P);
         setState(true); // Enable by default
     }

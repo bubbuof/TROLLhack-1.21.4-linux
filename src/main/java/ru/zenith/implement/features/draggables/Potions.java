@@ -4,7 +4,6 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.effect.StatusEffect;
 import net.minecraft.entity.effect.StatusEffectInstance;
-import net.minecraft.text.Text;
 import net.minecraft.network.packet.s2c.play.EntityStatusEffectS2CPacket;
 import net.minecraft.network.packet.s2c.play.GameJoinS2CPacket;
 import net.minecraft.network.packet.s2c.play.PlayerRespawnS2CPacket;
@@ -27,8 +26,9 @@ import java.util.*;
 
 public class Potions extends AbstractDraggable {
     private final List<Potion> list = new ArrayList<>();
+
     public Potions() {
-        super("Potions", 210, 10, 80, 23,true);
+        super("Potions", 210, 10, 80, 23, true);
     }
 
     @Override
@@ -39,7 +39,7 @@ public class Potions extends AbstractDraggable {
     @Override
     public void tick() {
         list.removeIf(p -> p.anim.isFinished(Direction.BACKWARDS));
-        list.forEach(p -> p.effect.update(mc.player,null));
+        list.forEach(p -> p.effect.update(mc.player, null));
     }
 
     @Override
@@ -62,19 +62,25 @@ public class Potions extends AbstractDraggable {
     @Override
     public void drawDraggable(DrawContext context) {
         MatrixStack matrix = context.getMatrices();
-        FontRenderer font = Fonts.getSize(14, Fonts.Type.DEFAULT); // Larger readable font
+        FontRenderer font = Fonts.getSize(14, Fonts.Type.DEFAULT);
         FontRenderer fontPotion = Fonts.getSize(13, Fonts.Type.DEFAULT);
 
-        // ScoreBoard style background with blur and rounded corners
-        blur.render(ShapeProperties.create(matrix, getX(), getY(), getWidth(), getHeight())
-                .round(4).thickness(2).softness(1).outlineColor(ColorUtil.getOutline()).color(ColorUtil.getRect(0.7F)).build());
+        // GameSense style background - темный как у CoolDowns
+        rectangle.render(ShapeProperties.create(matrix, getX(), getY(), getWidth(), getHeight())
+                .color(ColorUtil.getColor(15, 15, 15, 200)).build());
+
+        // Top accent line - цвет клиента как у CoolDowns
+        rectangle.render(ShapeProperties.create(matrix, getX(), getY(), getWidth(), 1)
+                .color(ColorUtil.getClientColor()).build());
 
         float centerX = getX() + getWidth() / 2.0F;
-        int offset = 16, maxWidth = 80;
 
-        // ScoreBoard style title
-        font.drawText(matrix, Text.of(getName().toLowerCase()), (int) (centerX - font.getStringWidth(getName().toLowerCase()) / 2.0F), getY() + 4);
-        
+        // Заголовок в стиле CoolDowns
+        font.drawString(matrix, getName().toLowerCase(), (int) (centerX - font.getStringWidth(getName().toLowerCase()) / 2.0F), getY() + 4, ColorUtil.WHITE);
+
+        int offset = 16;
+        int maxWidth = 80;
+
         for (Potion potion : list) {
             StatusEffectInstance effect = potion.effect;
             float animation = potion.anim.getOutput().floatValue();
@@ -87,16 +93,16 @@ public class Potions extends AbstractDraggable {
 
             MathUtil.scale(matrix, centerX, centerY, 1, animation, () -> {
                 // Simple warning color for low duration
-                int durationColor = effect.getDuration() != -1 && effect.getDuration() <= 120 ? 
+                int durationColor = effect.getDuration() != -1 && effect.getDuration() <= 120 ?
                         ColorUtil.getColor(255, 150, 150) : ColorUtil.getClientColor();
-                
-                // Simple potion icon
+
+                // Simple potion icon - как иконки предметов в CoolDowns
                 Render2DUtil.drawSprite(matrix, mc.getStatusEffectSpriteManager().getSprite(effect.getEffectType()), getX() + 3, (int) centerY - 1, 6, 6);
-                
-                // Simple potion name with level
+
+                // Simple potion name with level - серый текст как в CoolDowns
                 fontPotion.drawString(matrix, name + lvl, getX() + 12, centerY, ColorUtil.getColor(200, 200, 200));
-                
-                // Simple duration
+
+                // Simple duration - цвет клиента как в CoolDowns
                 fontPotion.drawString(matrix, duration, getX() + getWidth() - 4 - fontPotion.getStringWidth(duration), centerY, durationColor);
             });
 
@@ -112,7 +118,7 @@ public class Potions extends AbstractDraggable {
     private String getDuration(StatusEffectInstance pe) {
         int var1 = pe.getDuration();
         int mins = var1 / 1200;
-        return pe.isInfinite() || mins > 60 ? "**:**": mins + ":" + String.format("%02d", (var1 % 1200) / 20);
+        return pe.isInfinite() || mins > 60 ? "**:**" : mins + ":" + String.format("%02d", (var1 % 1200) / 20);
     }
 
     private record Potion(StatusEffectInstance effect, Animation anim) {}

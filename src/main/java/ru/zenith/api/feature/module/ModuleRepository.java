@@ -3,11 +3,9 @@ package ru.zenith.api.feature.module;
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
 import ru.kotopushka.compiler.sdk.annotations.Compile;
-import ru.kotopushka.compiler.sdk.annotations.Initialization;
-import ru.kotopushka.compiler.sdk.annotations.VMProtect;
-import ru.kotopushka.compiler.sdk.enums.VMProtectType;
 import ru.zenith.implement.features.modules.combat.*;
 import ru.zenith.implement.features.modules.misc.*;
+import ru.zenith.implement.features.modules.misc.FTHelper;
 import ru.zenith.implement.features.modules.movement.*;
 import ru.zenith.implement.features.modules.player.*;
 import ru.zenith.implement.features.modules.render.*;
@@ -21,6 +19,11 @@ public class ModuleRepository {
 
     public void setup() {
         register(
+                new FTHelper(),
+                new HighJump(),
+                new Tracker(),
+                //new BackTrack(),
+                //new NoClip(),
                 new AutoBuff(),
                 new Jesus(),
                 new LongJump(),
@@ -79,7 +82,7 @@ public class ModuleRepository {
                 new FireWorkBooster(),
                 new Spider(),
                 new ServerRPSpoofer(),
-                new ru.zenith.implement.features.modules.misc.Speed(),
+                new ru.zenith.implement.features.modules.movement.Speed(),
                 new LegitTargetStrafe(),
                 new RageStrafe(),
                 new Strafe(),

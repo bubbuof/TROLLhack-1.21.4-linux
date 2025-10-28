@@ -2,6 +2,7 @@ package ru.zenith.implement.features.modules.render;
 
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ChatScreen;
+import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.effect.StatusEffect;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.item.ItemStack;
@@ -14,6 +15,10 @@ import ru.zenith.api.feature.module.setting.implement.BooleanSetting;
 import ru.zenith.api.feature.module.setting.implement.ColorSetting;
 import ru.zenith.api.feature.module.setting.implement.SelectSetting;
 import ru.zenith.api.feature.module.setting.implement.ValueSetting;
+import ru.zenith.api.system.font.FontRenderer;
+import ru.zenith.api.system.font.Fonts;
+import ru.zenith.api.system.shape.ShapeProperties;
+import ru.zenith.common.util.color.ColorUtil;
 import ru.zenith.common.util.math.MathUtil;
 import ru.zenith.common.util.other.Instance;
 import ru.zenith.core.Main;
@@ -21,12 +26,12 @@ import ru.zenith.implement.events.render.DrawEvent;
 
 import java.awt.*;
 import java.text.SimpleDateFormat;
-import java.util.List;
 import java.util.*;
+import java.util.List;
 import java.util.stream.Collectors;
 
 public class LegacyHud extends Module {
-    
+
     public static LegacyHud getInstance() {
         return Instance.get(LegacyHud.class);
     }
@@ -36,20 +41,22 @@ public class LegacyHud extends Module {
     // Font selection
     private final SelectSetting customFont = new SelectSetting("Font", "Select font type")
             .value("Minecraft", "Comfortaa", "Monsterrat", "SF").selected("Minecraft");
-    
+
     // Color setting
     private final ColorSetting colorSetting = new ColorSetting("Color", "HUD text color")
             .setColor(0x0077FF);
-    
+
     // Rendering direction
     private final BooleanSetting renderingUp = new BooleanSetting("RenderingUp", "Render modules from top to bottom")
             .setValue(false);
-    
+
     // HUD Components
     private final BooleanSetting waterMark = new BooleanSetting("Watermark", "Show client watermark")
             .setValue(false);
     private final BooleanSetting arrayList = new BooleanSetting("ActiveModules", "Show active modules list")
             .setValue(false);
+    private final BooleanSetting modernArrayList = new BooleanSetting("ModernArrayList", "Use modern arraylist style")
+            .setValue(true).visible(() -> arrayList.isValue());
     private final BooleanSetting coords = new BooleanSetting("Coords", "Show coordinates")
             .setValue(false);
     private final BooleanSetting direction = new BooleanSetting("Direction", "Show facing direction")
@@ -94,9 +101,9 @@ public class LegacyHud extends Module {
 
     public LegacyHud() {
         super("LegacyHud", "Legacy HUD", ModuleCategory.RENDER);
-        setup(customFont, colorSetting, renderingUp, waterMark, arrayList, coords, direction, 
-              armor, totems, greeter, speed, bps, potions, ping, tps, extraTps, 
-              offhandDurability, mainhandDurability, fps, chests, worldTime, biome, time, waterMarkY);
+        setup(customFont, colorSetting, renderingUp, waterMark, arrayList, modernArrayList, coords, direction,
+                armor, totems, greeter, speed, bps, potions, ping, tps, extraTps,
+                offhandDurability, mainhandDurability, fps, chests, worldTime, biome, time, waterMarkY);
     }
 
     @EventHandler
@@ -105,183 +112,262 @@ public class LegacyHud extends Module {
 
         try {
             DrawContext context = event.getDrawContext();
+            MatrixStack matrix = context.getMatrices();
             int width = mc.getWindow().getScaledWidth();
             int height = mc.getWindow().getScaledHeight();
             int offset;
 
-        // Font offset calculation
-        switch (customFont.getSelected()) {
-            case "Minecraft" -> offset = 10;
-            case "Monsterrat" -> offset = 9;
-            default -> offset = 8;
-        }
+            // Font offset calculation
+            switch (customFont.getSelected()) {
+                case "Minecraft" -> offset = 10;
+                case "Monsterrat" -> offset = 9;
+                default -> offset = 8;
+            }
 
-        color = colorSetting.getColor();
+            color = colorSetting.getColor();
 
-        // Watermark
-        if (waterMark.isValue()) {
-            drawText(context, "88Hack v1.13", 2, waterMarkY.getInt());
-        }
+            // Watermark
+            if (waterMark.isValue()) {
+                drawText(context, "88Hack v1.13", 2, waterMarkY.getInt());
+            }
 
-        int j = (mc.currentScreen instanceof ChatScreen && !renderingUp.isValue()) ? 14 : 0;
+            int j = (mc.currentScreen instanceof ChatScreen && !renderingUp.isValue()) ? 14 : 0;
 
-        // Active modules list
-        if (arrayList.isValue()) {
-            try {
-                List<ru.zenith.api.feature.module.Module> enabledModules = Main.getInstance().getModuleRepository().modules()
-                        .stream()
-                        .filter(module -> module != null && module.isState())
-                        .filter(module -> module.getName() != null)
-                        .sorted(Comparator.comparing(module -> {
+// Active modules list - MODERN VERSION (DENSE RIGHT-ALIGNED BACKGROUNDS)
+            if (arrayList.isValue() && modernArrayList.isValue()) {
+                try {
+                    FontRenderer font = Fonts.getSize(13, Fonts.Type.DEFAULT);
+
+                    List<ru.zenith.api.feature.module.Module> enabledModules = Main.getInstance().getModuleRepository().modules()
+                            .stream()
+                            .filter(module -> module != null && module.isState())
+                            .filter(module -> module.getName() != null)
+                            // ОБРАТНАЯ СОРТИРОВКА: сверху самые длинные, снизу самые короткие
+                            .sorted(Comparator.comparing(module -> {
+                                String name = module.getVisibleName() != null ? module.getVisibleName() : module.getName();
+                                return name != null ? -font.getStringWidth(name) : 0; // МИНУС для обратной сортировки
+                            }))
+                            .collect(Collectors.toList());
+
+                    if (!enabledModules.isEmpty()) {
+                        int bgX = width - 2;
+
+                        int startY = renderingUp.isValue() ? 2 : height - 2;
+                        int moduleOffset = 0;
+
+                        // Сначала вычисляем общую высоту всего ArrayList для вертикальной полоски
+                        int totalHeight = enabledModules.size() * 10;
+                        int firstBgY = renderingUp.isValue() ? startY : startY - totalHeight;
+
+                        // Рендерим все модули
+                        for (ru.zenith.api.feature.module.Module module : enabledModules) {
                             String name = module.getVisibleName() != null ? module.getVisibleName() : module.getName();
-                            return name != null ? getStringWidth(name) * -1 : 0;
-                        }))
-                        .collect(Collectors.toList());
+                            if (name == null) continue;
 
-                for (ru.zenith.api.feature.module.Module module : enabledModules) {
-                    if (module == null) continue;
-                    String str = (module.getVisibleName() != null ? module.getVisibleName() : module.getName());
-                    if (str == null) continue;
-                    
-                    if (renderingUp.isValue()) {
-                        drawText(context, str, (width - 2 - getStringWidth(str)), (2 + j * offset));
-                        j++;
-                    } else {
-                        j += offset;
-                        drawText(context, str, (width - 2 - getStringWidth(str)), (height - j));
+                            float animation = module.getAnimation().getOutput().floatValue();
+                            int nameWidth = (int) font.getStringWidth(name);
+                            int bgWidth = nameWidth + 8;
+                            int bgHeight = 10;
+
+                            int currentBgX = bgX - bgWidth;
+
+                            int currentBgY;
+                            if (renderingUp.isValue()) {
+                                // Вверху: начальная позиция + смещение (сверху вниз)
+                                currentBgY = startY + moduleOffset;
+                            } else {
+                                // Внизу: начальная позиция - общая высота + смещение (тоже сверху вниз, но от нижнего края)
+                                currentBgY = startY - totalHeight + moduleOffset;
+                            }
+
+                            // Individual background for each module
+                            rectangle.render(ShapeProperties.create(matrix, currentBgX, currentBgY, bgWidth, bgHeight)
+                                    .color(ColorUtil.getColor(15, 15, 15, 200)).build());
+
+                            float centerY = currentBgY + 5;
+
+                            MathUtil.scale(matrix, currentBgX + bgWidth / 2.0F, centerY, 1, animation, () -> {
+                                // Module name aligned to right inside its background
+                                font.drawString(matrix, name, currentBgX + 4, centerY, ColorUtil.getClientColor());
+                            });
+
+                            moduleOffset += bgHeight;
+                        }
+
+                        // ВЕРТИКАЛЬНАЯ СИНЯЯ ПОЛОСКА СПРАВА (рисуется один раз для всего ArrayList)
+                        int verticalLineX = bgX; // Правый край всех фонов
+                        rectangle.render(ShapeProperties.create(matrix, verticalLineX, firstBgY, 1, totalHeight)
+                                .color(ColorUtil.getClientColor()).build());
                     }
+                } catch (Exception e) {
+                    // Skip module list rendering if there's an error
                 }
-            } catch (Exception e) {
-                // Skip module list rendering if there's an error
             }
-        }
+            // LEGACY Active modules list
+            else if (arrayList.isValue()) {
+                try {
+                    List<ru.zenith.api.feature.module.Module> enabledModules = Main.getInstance().getModuleRepository().modules()
+                            .stream()
+                            .filter(module -> module != null && module.isState())
+                            .filter(module -> module.getName() != null)
+                            .sorted(Comparator.comparing(module -> {
+                                String name = module.getVisibleName() != null ? module.getVisibleName() : module.getName();
+                                return name != null ? getStringWidth(name) * -1 : 0;
+                            }))
+                            .collect(Collectors.toList());
 
-        int i = (mc.currentScreen instanceof ChatScreen && renderingUp.isValue()) ? 13 : (renderingUp.isValue() ? -2 : 0);
+                    for (ru.zenith.api.feature.module.Module module : enabledModules) {
+                        if (module == null) continue;
+                        String str = (module.getVisibleName() != null ? module.getVisibleName() : module.getName());
+                        if (str == null) continue;
 
-        // Potions
-        if (potions.isValue() && mc.player != null) {
-            try {
-                List<StatusEffectInstance> effects = new ArrayList<>(mc.player.getStatusEffects());
-                for (StatusEffectInstance potionEffect : effects) {
-                    if (potionEffect == null || potionEffect.getEffectType() == null) continue;
-                    
-                    StatusEffect potion = potionEffect.getEffectType().value();
-                    if (potion == null) continue;
-                    
-                    String power = "";
-                    switch (potionEffect.getAmplifier()) {
-                        case 0 -> power = "I";
-                        case 1 -> power = "II";
-                        case 2 -> power = "III";
-                        case 3 -> power = "IV";
-                        case 4 -> power = "V";
+                        if (renderingUp.isValue()) {
+                            drawText(context, str, (width - 2 - getStringWidth(str)), (2 + j * offset));
+                            j++;
+                        } else {
+                            j += offset;
+                            drawText(context, str, (width - 2 - getStringWidth(str)), (height - j));
+                        }
                     }
-                    String s = potion.getName().getString() + " " + power;
-                    String s2 = getDuration(potionEffect) + "";
-                    Color c = new Color(potionEffect.getEffectType().value().getColor());
-
-                    if (renderingUp.isValue()) {
-                        i += offset;
-                        drawText(context, s + " " + s2, (width - getStringWidth(s + " " + s2) - 2), (height - 2 - i), c.getRGB());
-                    } else {
-                        drawText(context, s + " " + s2, (width - getStringWidth(s + " " + s2) - 2), (2 + i++ * offset), c.getRGB());
-                    }
+                } catch (Exception e) {
+                    // Skip module list rendering if there's an error
                 }
-            } catch (Exception e) {
-                // Skip potions rendering if there's an error
             }
-        }
 
-        // World Time
-        if (worldTime.isValue()) {
-            String str2 = "WorldTime: " + Formatting.WHITE + mc.world.getTimeOfDay() % 24000;
-            drawText(context, str2, width - getStringWidth(str2) - 2, renderingUp.isValue() ? (height - 2 - (i += offset)) : (2 + i++ * offset));
-        }
+            int i = (mc.currentScreen instanceof ChatScreen && renderingUp.isValue()) ? 13 : (renderingUp.isValue() ? -2 : 0);
 
-        // Mainhand Durability
-        if (mainhandDurability.isValue()) {
-            String str = "MainHand" + Formatting.WHITE + " [" + (mc.player.getMainHandStack().getMaxDamage() - mc.player.getMainHandStack().getDamage()) + "]";
-            drawText(context, str, (width - getStringWidth(str) - 2), renderingUp.isValue() ? (height - 2 - (i += offset)) : (2 + i++ * offset));
-        }
+            // Potions
+            if (potions.isValue() && mc.player != null) {
+                try {
+                    List<StatusEffectInstance> effects = new ArrayList<>(mc.player.getStatusEffects());
+                    for (StatusEffectInstance potionEffect : effects) {
+                        if (potionEffect == null || potionEffect.getEffectType() == null) continue;
 
-        // TPS
-        if (tps.isValue()) {
-            String str = "TPS " + Formatting.WHITE + "20.0" + (extraTps.isValue() ? " [20.0]" : "");
-            drawText(context, str, (width - getStringWidth(str) - 2), renderingUp.isValue() ? (height - 2 - (i += offset)) : (2 + i++ * offset));
-        }
+                        StatusEffect potion = potionEffect.getEffectType().value();
+                        if (potion == null) continue;
 
-        // Speed
-        if (speed.isValue()) {
-            double playerSpeed = Math.sqrt(Math.pow(mc.player.getX() - mc.player.prevX, 2) + Math.pow(mc.player.getZ() - mc.player.prevZ, 2)) * 20;
-            String str = "Speed " + Formatting.WHITE + MathUtil.round(playerSpeed * (bps.isValue() ? 1f : 3.6f), 1) + (bps.isValue() ? " b/s" : " km/h");
-            drawText(context, str, (width - getStringWidth(str) - 2), renderingUp.isValue() ? (height - 2 - (i += offset)) : (2 + i++ * offset));
-        }
+                        String power = "";
+                        switch (potionEffect.getAmplifier()) {
+                            case 0 -> power = "I";
+                            case 1 -> power = "II";
+                            case 2 -> power = "III";
+                            case 3 -> power = "IV";
+                            case 4 -> power = "V";
+                        }
+                        String s = potion.getName().getString() + " " + power;
+                        String s2 = getPotionDuration(potionEffect) + ""; // FIX: renamed method
+                        Color c = new Color(potionEffect.getEffectType().value().getColor());
 
-        // Biome
-        if (biome.isValue()) {
-            String str3 = "Biome: " + Formatting.WHITE + getBiome();
-            drawText(context, str3, width - getStringWidth(str3) - 2, renderingUp.isValue() ? (height - 2 - (i += offset)) : (2 + i++ * offset));
-        }
-
-        // Time
-        if (time.isValue()) {
-            String str = "Time " + Formatting.WHITE + (new SimpleDateFormat("h:mm a")).format(new Date());
-            drawText(context, str, (width - getStringWidth(str) - 2), renderingUp.isValue() ? (height - 2 - (i += offset)) : (2 + i++ * offset));
-        }
-
-        // Offhand Durability
-        if (offhandDurability.isValue()) {
-            String str = "OffHand" + Formatting.WHITE + " [" + (mc.player.getOffHandStack().getMaxDamage() - mc.player.getOffHandStack().getDamage()) + "]";
-            drawText(context, str, (width - getStringWidth(str) - 2), renderingUp.isValue() ? (height - 2 - (i += offset)) : (2 + i++ * offset));
-        }
-
-        // Ping
-        if (ping.isValue()) {
-            String str1 = "Ping " + Formatting.WHITE + getPing();
-            drawText(context, str1, width - getStringWidth(str1) - 2, renderingUp.isValue() ? (height - 2 - (i += offset)) : (2 + i++ * offset));
-        }
-
-        // FPS
-        if (fps.isValue()) {
-            String fpsText = "FPS " + Formatting.WHITE + mc.getCurrentFps();
-            drawText(context, fpsText, width - getStringWidth(fpsText) - 2, renderingUp.isValue() ? (height - 2 - (i += offset)) : (2 + i++ * offset));
-        }
-
-        // Coordinates and Direction (bottom left)
-        boolean inHell = Objects.equals(mc.world.getRegistryKey().getValue().getPath(), "the_nether");
-        int posX = (int) mc.player.getX();
-        int posY = (int) mc.player.getY();
-        int posZ = (int) mc.player.getZ();
-        float nether = !inHell ? 0.125F : 8.0F;
-        int hposX = (int) (mc.player.getX() * nether);
-        int hposZ = (int) (mc.player.getZ() * nether);
-        i = (mc.currentScreen instanceof ChatScreen) ? 14 : 0;
-        String coordinates = Formatting.WHITE + "XYZ " + Formatting.RESET + (inHell ? 
-            (posX + ", " + posY + ", " + posZ + Formatting.WHITE + " [" + Formatting.RESET + hposX + ", " + hposZ + Formatting.WHITE + "]" + Formatting.RESET) : 
-            (posX + ", " + posY + ", " + posZ + Formatting.WHITE + " [" + Formatting.RESET + hposX + ", " + hposZ + Formatting.WHITE + "]"));
-        String direction1 = "";
-
-        i += offset;
-
-        if (direction.isValue()) {
-            switch (mc.player.getHorizontalFacing()) {
-                case EAST -> direction1 = "East" + Formatting.WHITE + " [+X]";
-                case WEST -> direction1 = "West" + Formatting.WHITE + " [-X]";
-                case NORTH -> direction1 = "North" + Formatting.WHITE + " [-Z]";
-                case SOUTH -> direction1 = "South" + Formatting.WHITE + " [+Z]";
-                case UP, DOWN -> direction1 = "Unknown";
+                        if (renderingUp.isValue()) {
+                            i += offset;
+                            drawText(context, s + " " + s2, (width - getStringWidth(s + " " + s2) - 2), (height - 2 - i), c.getRGB());
+                        } else {
+                            drawText(context, s + " " + s2, (width - getStringWidth(s + " " + s2) - 2), (2 + i++ * offset), c.getRGB());
+                        }
+                    }
+                } catch (Exception e) {
+                    // Skip potions rendering if there's an error
+                }
             }
-            drawText(context, direction1, 2, (height - i - 11));
-        }
 
-        if (coords.isValue()) drawText(context, coordinates, 2, (height - i));
-        if (armor.isValue()) renderArmorHUD(true, context);
-        if (totems.isValue()) renderTotemHUD(context);
-        if (greeter.isValue()) renderGreeter(context);
-        
+            // World Time
+            if (worldTime.isValue()) {
+                String str2 = "WorldTime: " + Formatting.WHITE + mc.world.getTimeOfDay() % 24000;
+                drawText(context, str2, width - getStringWidth(str2) - 2, renderingUp.isValue() ? (height - 2 - (i += offset)) : (2 + i++ * offset));
+            }
+
+            // Mainhand Durability
+            if (mainhandDurability.isValue()) {
+                String str = "MainHand" + Formatting.WHITE + " [" + (mc.player.getMainHandStack().getMaxDamage() - mc.player.getMainHandStack().getDamage()) + "]";
+                drawText(context, str, (width - getStringWidth(str) - 2), renderingUp.isValue() ? (height - 2 - (i += offset)) : (2 + i++ * offset));
+            }
+
+            // TPS
+            if (tps.isValue()) {
+                String str = "TPS " + Formatting.WHITE + "20.0" + (extraTps.isValue() ? " [20.0]" : "");
+                drawText(context, str, (width - getStringWidth(str) - 2), renderingUp.isValue() ? (height - 2 - (i += offset)) : (2 + i++ * offset));
+            }
+
+            // Speed
+            if (speed.isValue()) {
+                double playerSpeed = Math.sqrt(Math.pow(mc.player.getX() - mc.player.prevX, 2) + Math.pow(mc.player.getZ() - mc.player.prevZ, 2)) * 20;
+                String str = "Speed " + Formatting.WHITE + MathUtil.round(playerSpeed * (bps.isValue() ? 1f : 3.6f), 1) + (bps.isValue() ? " b/s" : " km/h");
+                drawText(context, str, (width - getStringWidth(str) - 2), renderingUp.isValue() ? (height - 2 - (i += offset)) : (2 + i++ * offset));
+            }
+
+            // Biome
+            if (biome.isValue()) {
+                String str3 = "Biome: " + Formatting.WHITE + getBiome();
+                drawText(context, str3, width - getStringWidth(str3) - 2, renderingUp.isValue() ? (height - 2 - (i += offset)) : (2 + i++ * offset));
+            }
+
+            // Time
+            if (time.isValue()) {
+                String str = "Time " + Formatting.WHITE + (new SimpleDateFormat("h:mm a")).format(new Date());
+                drawText(context, str, (width - getStringWidth(str) - 2), renderingUp.isValue() ? (height - 2 - (i += offset)) : (2 + i++ * offset));
+            }
+
+            // Offhand Durability
+            if (offhandDurability.isValue()) {
+                String str = "OffHand" + Formatting.WHITE + " [" + (mc.player.getOffHandStack().getMaxDamage() - mc.player.getOffHandStack().getDamage()) + "]";
+                drawText(context, str, (width - getStringWidth(str) - 2), renderingUp.isValue() ? (height - 2 - (i += offset)) : (2 + i++ * offset));
+            }
+
+            // Ping
+            if (ping.isValue()) {
+                String str1 = "Ping " + Formatting.WHITE + getPing();
+                drawText(context, str1, width - getStringWidth(str1) - 2, renderingUp.isValue() ? (height - 2 - (i += offset)) : (2 + i++ * offset));
+            }
+
+            // FPS
+            if (fps.isValue()) {
+                String fpsText = "FPS " + Formatting.WHITE + mc.getCurrentFps();
+                drawText(context, fpsText, width - getStringWidth(fpsText) - 2, renderingUp.isValue() ? (height - 2 - (i += offset)) : (2 + i++ * offset));
+            }
+
+            // Coordinates and Direction (bottom left)
+            boolean inHell = Objects.equals(mc.world.getRegistryKey().getValue().getPath(), "the_nether");
+            int posX = (int) mc.player.getX();
+            int posY = (int) mc.player.getY();
+            int posZ = (int) mc.player.getZ();
+            float nether = !inHell ? 0.125F : 8.0F;
+            int hposX = (int) (mc.player.getX() * nether);
+            int hposZ = (int) (mc.player.getZ() * nether);
+            i = (mc.currentScreen instanceof ChatScreen) ? 14 : 0;
+            String coordinates = Formatting.WHITE + "XYZ " + Formatting.RESET + (inHell ?
+                    (posX + ", " + posY + ", " + posZ + Formatting.WHITE + " [" + Formatting.RESET + hposX + ", " + hposZ + Formatting.WHITE + "]" + Formatting.RESET) :
+                    (posX + ", " + posY + ", " + posZ + Formatting.WHITE + " [" + Formatting.RESET + hposX + ", " + hposZ + Formatting.WHITE + "]"));
+            String direction1 = "";
+
+            i += offset;
+
+            if (direction.isValue()) {
+                switch (mc.player.getHorizontalFacing()) {
+                    case EAST -> direction1 = "East" + Formatting.WHITE + " [+X]";
+                    case WEST -> direction1 = "West" + Formatting.WHITE + " [-X]";
+                    case NORTH -> direction1 = "North" + Formatting.WHITE + " [-Z]";
+                    case SOUTH -> direction1 = "South" + Formatting.WHITE + " [+Z]";
+                    case UP, DOWN -> direction1 = "Unknown";
+                }
+                drawText(context, direction1, 2, (height - i - 11));
+            }
+
+            if (coords.isValue()) drawText(context, coordinates, 2, (height - i));
+            if (armor.isValue()) renderArmorHUD(true, context);
+            if (totems.isValue()) renderTotemHUD(context);
+            if (greeter.isValue()) renderGreeter(context);
+
         } catch (Exception e) {
             // Silently handle any rendering errors to prevent crashes
         }
+    }
+
+    // FIX: Added missing getPotionDuration method
+    private String getPotionDuration(StatusEffectInstance effect) {
+        int duration = effect.getDuration();
+        int minutes = duration / 1200;
+        int seconds = (duration % 1200) / 20;
+        return String.format("%d:%02d", minutes, seconds);
     }
 
     private void drawText(DrawContext context, String str, int x, int y, int color) {
@@ -365,13 +451,6 @@ public class LegacyHud extends Module {
         return 0;
     }
 
-    private String getDuration(StatusEffectInstance effect) {
-        int duration = effect.getDuration();
-        int minutes = duration / 1200;
-        int seconds = (duration % 1200) / 20;
-        return String.format("%d:%02d", minutes, seconds);
-    }
-
     public void renderArmorHUD(boolean percent, DrawContext context) {
         if (mc.player == null || context == null) return;
         try {
@@ -394,8 +473,8 @@ public class LegacyHud extends Module {
                     float red = 1.0F - green;
                     int dmg = 100 - (int) (red * 100.0F);
 
-                    drawText(context, dmg + "", (x + 8 - getStringWidth(dmg + "") / 2), (y - 11), 
-                        new Color((int) Math.max(0, Math.min(255, red * 255.0F)), (int) Math.max(0, Math.min(255, green * 255.0F)), 0).getRGB());
+                    drawText(context, dmg + "", (x + 8 - getStringWidth(dmg + "") / 2), (y - 11),
+                            new Color((int) Math.max(0, Math.min(255, red * 255.0F)), (int) Math.max(0, Math.min(255, green * 255.0F)), 0).getRGB());
                 }
             }
         } catch (Exception e) {

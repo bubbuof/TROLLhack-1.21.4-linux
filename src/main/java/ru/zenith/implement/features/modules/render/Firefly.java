@@ -54,7 +54,7 @@ public class Firefly extends Module {
     public final ValueSetting sparkleChance = new ValueSetting("Sparkle Chance", "Sparkle chance").setValue(0.1f).range(0.01f, 0.5f);
 
     public Firefly() {
-        super("Firefly", "Adds beautiful firefly particles to your world", ModuleCategory.RENDER);
+        super("Firefly", "FireFly", ModuleCategory.RENDER);
     }
 
     @Override
