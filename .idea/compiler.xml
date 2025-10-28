@@ -12,7 +12,7 @@
         <processorPath useClasspath="false">
           <entry name="$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.projectlombok/lombok/1.18.30/f195ee86e6c896ea47a1d39defbe20eb59cd149d/lombok-1.18.30.jar" />
         </processorPath>
-        <module name="TROLLhack-1.21.4-linux.main" />
+        <module name="bomj-client-beta2.main" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel target="21" />
@@ -21,6 +21,7 @@
     <option name="ADDITIONAL_OPTIONS_STRING" value="-AoutRefMapFile=$PROJECT_DIR$/build/classes/java/main/zenith-refmap.json -AdefaultObfuscationEnv=named:intermediary -Aquiet=true -AoutMapFileNamedIntermediary=$PROJECT_DIR$/build/loom-cache/mixin-map-net.fabricmc.yarn.1_21_4.1.21.4+build.1-v2.main.tiny -AinMapFileNamedIntermediary=$USER_HOME$/.gradle/caches/fabric-loom/1.21.4/net.fabricmc.yarn.1_21_4.1.21.4+build.1-v2/mappings.tiny" />
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
       <module name="TROLLhack-1.21.4-linux.test" options="-AoutRefMapFile=$PROJECT_DIR$/build/classes/java/test/test-zenith-refmap.json -AdefaultObfuscationEnv=named:intermediary -Aquiet=true -AoutMapFileNamedIntermediary=$PROJECT_DIR$/build/loom-cache/mixin-map-net.fabricmc.yarn.1_21_4.1.21.4+build.1-v2.test.tiny -AinMapFileNamedIntermediary=$USER_HOME$/.gradle/caches/fabric-loom/1.21.4/net.fabricmc.yarn.1_21_4.1.21.4+build.1-v2/mappings.tiny" />
+      <module name="bomj-client-beta2.test" options="-AoutRefMapFile=$PROJECT_DIR$/build/classes/java/test/test-zenith-refmap.json -AdefaultObfuscationEnv=named:intermediary -Aquiet=true -AoutMapFileNamedIntermediary=$PROJECT_DIR$/build/loom-cache/mixin-map-net.fabricmc.yarn.1_21_4.1.21.4+build.1-v2.test.tiny -AinMapFileNamedIntermediary=$USER_HOME$/.gradle/caches/fabric-loom/1.21.4/net.fabricmc.yarn.1_21_4.1.21.4+build.1-v2/mappings.tiny" />
     </option>
   </component>
 </project>
