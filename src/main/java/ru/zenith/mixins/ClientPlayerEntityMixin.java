@@ -17,7 +17,6 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import ru.zenith.api.event.EventManager;
@@ -27,7 +26,6 @@ import ru.zenith.implement.events.block.PushEvent;
 import ru.zenith.implement.events.container.CloseScreenEvent;
 import ru.zenith.implement.events.item.UsingItemEvent;
 import ru.zenith.implement.events.player.*;
-import ru.zenith.implement.features.modules.combat.killaura.rotation.RotationController;
 import ru.zenith.implement.features.modules.movement.AutoSprint;
 import ru.zenith.implement.features.modules.movement.NoSlow;
 
@@ -44,9 +42,11 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayerEntity
     @Shadow
     protected MinecraftClient client;
 
-    @Shadow protected abstract void autoJump(float dx, float dz);
+    @Shadow
+    protected abstract void autoJump(float dx, float dz);
 
-    @Shadow public Input input;
+    @Shadow
+    public Input input;
 
     public ClientPlayerEntityMixin(ClientWorld world, GameProfile profile) {
         super(world, profile);
@@ -64,16 +64,6 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayerEntity
         if (client.player != null && client.world != null) {
             EventManager.callEvent(new PostTickEvent());
         }
-    }
-
-    @ModifyExpressionValue(method = {"sendMovementPackets", "tick"}, at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;getYaw()F"))
-    private float hookSilentRotationYaw(float original) {
-        return RotationController.INSTANCE.getRotation().getYaw();
-    }
-
-    @ModifyExpressionValue(method = {"sendMovementPackets", "tick"}, at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;getPitch()F"))
-    private float hookSilentRotationPitch(float original) {
-        return RotationController.INSTANCE.getRotation().getPitch();
     }
 
     @Inject(method = "closeHandledScreen", at = @At(value = "HEAD"), cancellable = true)
@@ -135,11 +125,17 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayerEntity
 
     @Inject(method = "shouldStopSprinting", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;isUsingItem()Z"), cancellable = true)
     public void shouldStopSprintingHook(CallbackInfoReturnable<Boolean> cir) {
-        if (AutoSprint.getInstance().isState() && NoSlow.getInstance().isState() && NoSlow.getInstance().slowTypeSetting.isSelected("Using Item")) cir.setReturnValue(false);
+        NoSlow noSlow = NoSlow.getInstance();
+        if (AutoSprint.getInstance().isState() && noSlow != null && noSlow.isState()) {
+            cir.setReturnValue(false);
+        }
     }
 
     @Inject(method = "canStartSprinting", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;isUsingItem()Z"), cancellable = true)
     public void canStartSprintingHook(CallbackInfoReturnable<Boolean> cir) {
-        if (AutoSprint.getInstance().isState() && NoSlow.getInstance().isState() && NoSlow.getInstance().slowTypeSetting.isSelected("Using Item")) cir.setReturnValue(false);
+        NoSlow noSlow = NoSlow.getInstance();
+        if (AutoSprint.getInstance().isState() && noSlow != null && noSlow.isState()) {
+            cir.setReturnValue(false);
+        }
     }
 }
