@@ -1,181 +1,277 @@
 package ru.zenith.implement.features.modules.combat;
 
 import lombok.AccessLevel;
-import lombok.Getter;
 import lombok.experimental.FieldDefaults;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.network.packet.Packet;
-import net.minecraft.network.packet.c2s.play.PlayerInteractEntityC2SPacket;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.Vec3d;
 import ru.zenith.api.event.EventHandler;
 import ru.zenith.api.feature.module.Module;
 import ru.zenith.api.feature.module.ModuleCategory;
-import ru.zenith.api.feature.module.setting.implement.BooleanSetting;
-import ru.zenith.api.feature.module.setting.implement.ValueSetting;
-import ru.zenith.common.util.color.ColorUtil;
-import ru.zenith.common.util.other.StopWatch;
-import ru.zenith.common.util.render.Render3DUtil;
-import ru.zenith.implement.events.packet.PacketEvent;
+import ru.zenith.api.feature.module.setting.implement.*;
+import ru.zenith.implement.events.keyboard.KeyEvent;
+import ru.zenith.implement.events.player.AttackEvent;
 import ru.zenith.implement.events.player.TickEvent;
 import ru.zenith.implement.events.render.WorldRenderEvent;
+import ru.zenith.implement.events.packet.PacketEvent;
+import ru.zenith.common.util.math.MathUtil;
+import ru.zenith.common.util.render.Render3DUtil;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.network.packet.s2c.play.EntityPositionS2CPacket;
+import net.minecraft.network.packet.s2c.play.EntityS2CPacket;
+import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
+import java.lang.reflect.Field;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-
-@Getter
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class BackTrack extends Module {
-    // Храним историю позиций врагов
-    private final Map<Integer, List<Vec3d>> enemyPositionHistory = new ConcurrentHashMap<>();
-    private final Map<Integer, StopWatch> enemyTimers = new ConcurrentHashMap<>();
 
     // Настройки
-    private final BooleanSetting enabledSetting = new BooleanSetting("Enabled", "Enable backtrack hits")
-            .setValue(true);
+    final BindSetting resetKey = new BindSetting("Reset", "Сбросить позицию");
 
-    private final ValueSetting backTrackTime = new ValueSetting("BackTrack Time", "How far to backtrack hit position (ms)")
-            .setValue(100).range(50, 500);
+    final ValueSetting range = new ValueSetting("Range", "Дистанция работы")
+            .range(3.0f, 100.0f)
+            .setValue(3.0f);
 
-    private final ValueSetting historySize = new ValueSetting("History Size", "Max positions to remember per enemy")
-            .setValue(20).range(10, 50);
+    final ValueSetting delayMs = new ValueSetting("Delay", "Задержка пакетов")
+            .range(100.0f, 1000.0f)
+            .setValue(500.0f);
 
-    private final ValueSetting recordInterval = new ValueSetting("Record Interval", "Position record interval (ms)")
-            .setValue(50).range(10, 100);
-
-    private final BooleanSetting visualize = new BooleanSetting("Visualize", "Show backtrack hitbox")
-            .setValue(true);
-
-    // Фейковая позиция для отрисовки и ударов
-    private Vec3d fakeHitPosition;
-    private Box fakeHitBox;
-    private Integer currentTargetId;
+    // Состояния (без final чтобы можно было изменять)
+    final List<Queued> queue = new LinkedList<>();
+    Entity target;
+    Vec3d realPos;
+    Vec3d interpRealPos;
 
     public BackTrack() {
-        super("BackTrack", "Hit enemy's past server positions", ModuleCategory.COMBAT);
-        setup(enabledSetting, backTrackTime, historySize, recordInterval, visualize);
+        super("BackTrack", "BackTrack", ModuleCategory.COMBAT);
+        setup(resetKey, range, delayMs);
     }
 
     @Override
     public void activate() {
-        enemyPositionHistory.clear();
-        enemyTimers.clear();
-        fakeHitPosition = null;
-        fakeHitBox = null;
-        currentTargetId = null;
+        super.activate();
+        if (mc.isIntegratedServerRunning()) {
+            deactivate();
+        } else {
+            reset();
+        }
+    }
+
+    @Override
+    public void deactivate() {
+        super.deactivate();
+        if (!mc.isIntegratedServerRunning()) {
+            reset();
+        }
     }
 
     @EventHandler
-    public void onTick(TickEvent event) {
-        if (!enabledSetting.isValue() || mc.world == null) return;
+    public void onKey(KeyEvent event) {
+        if (event.isKeyDown(resetKey.getKey())) {
+            reset();
+        }
+    }
 
-        // Записываем позиции всех врагов
-        for (Entity entity : mc.world.getEntities()) {
-            if (entity instanceof LivingEntity living && isEnemy(living)) {
-                recordEnemyPosition(living);
+    @EventHandler
+    public void onAttack(AttackEvent event) {
+        Entity targetEntity = event.getEntity();
+        if (targetEntity != null) {
+            if (targetEntity != this.target && !targetEntity.isRemoved()) {
+                this.target = targetEntity;
+                this.realPos = targetEntity.getPos();
+                this.interpRealPos = this.realPos;
             }
         }
     }
 
     @EventHandler
     public void onPacket(PacketEvent event) {
-        if (!enabledSetting.isValue()) return;
+        if (event.getType() == PacketEvent.Type.RECEIVE && !mc.isIntegratedServerRunning()) {
+            if (shouldLag()) {
+                Object packet = event.getPacket();
 
-        // Перехватываем пакеты атаки и подменяем позицию
-        if (event.isSend() && event.getPacket() instanceof PlayerInteractEntityC2SPacket attackPacket) {
-            // Получаем entity по ID из пакета
-            int entityId = getEntityIdFromPacket(attackPacket);
-            Entity target = mc.world.getEntityById(entityId);
+                // Игнорируем определенные пакеты
+                if (!(packet instanceof EntityS2CPacket.Rotate) &&
+                        !(packet instanceof EntityS2CPacket.MoveRelative)) {
 
-            if (target instanceof LivingEntity living && isEnemy(living)) {
-                Vec3d backTrackPos = getBackTrackPosition(living);
+                    if (!(packet instanceof PlayerPositionLookS2CPacket) && !isDisconnectPacket(packet)) {
+                        if (packet instanceof EntityPositionS2CPacket) {
+                            processEntityPacket((EntityPositionS2CPacket) packet);
+                        }
 
-                if (backTrackPos != null) {
-                    // Устанавливаем фейковую позицию для отрисовки
-                    fakeHitPosition = backTrackPos;
-                    fakeHitBox = new Box(
-                            backTrackPos.x - 0.3, backTrackPos.y, backTrackPos.z - 0.3,
-                            backTrackPos.x + 0.3, backTrackPos.y + 1.8, backTrackPos.z + 0.3
-                    );
-                    currentTargetId = living.getId();
-
-                    // Логика подмены пакета будет здесь
-                    // modifyAttackPacket(attackPacket, backTrackPos);
+                        event.setCancelled(true);
+                        queue.add(new Queued(packet, System.currentTimeMillis()));
+                    } else {
+                        reset();
+                    }
                 }
             }
         }
     }
 
+    private void processEntityPacket(EntityPositionS2CPacket packet) {
+        try {
+            int id = tryPacketInt(packet, "getId", "id");
+            if (this.target != null && this.target.getId() == id) {
+                double dx = tryPacketDouble(packet, "getDeltaX", "deltaX") / 4096.0;
+                double dy = tryPacketDouble(packet, "getDeltaY", "deltaY") / 4096.0;
+                double dz = tryPacketDouble(packet, "getDeltaZ", "deltaZ") / 4096.0;
+
+                if (!Double.isNaN(dx) && !Double.isNaN(dy) && !Double.isNaN(dz)) {
+                    if (this.realPos == null) {
+                        this.realPos = this.target.getPos();
+                    }
+                    this.realPos = this.realPos.add(dx, dy, dz);
+                } else {
+                    double ax = tryPacketDouble(packet, "getX", "x");
+                    double ay = tryPacketDouble(packet, "getY", "y");
+                    double az = tryPacketDouble(packet, "getZ", "z");
+                    if (!Double.isNaN(ax) && !Double.isNaN(ay) && !Double.isNaN(az)) {
+                        this.realPos = new Vec3d(ax, ay, az);
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    @EventHandler
+    public void onTick(TickEvent event) {
+        if (!mc.isIntegratedServerRunning()) {
+            if (!queue.isEmpty() && realPos != null) {
+                if (!shouldLag()) {
+                    reset();
+                } else {
+                    processQueue();
+                }
+            }
+        }
+    }
+
+    private void processQueue() {
+        double dist = mc.player.getPos().distanceTo(realPos);
+        double factor = dist / range.getValue();
+        long now = System.currentTimeMillis();
+        Iterator<Queued> it = queue.iterator();
+
+        while (it.hasNext()) {
+            Queued q = it.next();
+            if (q.timestamp + (long)(delayMs.getValue() * Math.max(0.5, factor)) > now) {
+                break;
+            }
+            it.remove();
+        }
+    }
+
     @EventHandler
     public void onWorldRender(WorldRenderEvent event) {
-        if (!enabledSetting.isValue() || !visualize.isValue() || fakeHitBox == null) return;
-
-        // Отрисовываем фейковый хитбокс для удара
-        Render3DUtil.drawBox(fakeHitBox, ColorUtil.getColor(255, 0, 0), 2);
-
-        // Простая визуализация - линия от игрока к фейковой позиции
-        if (fakeHitPosition != null && mc.player != null) {
-            Render3DUtil.drawLine(
-                    mc.player.getPos(), fakeHitPosition,
-                    ColorUtil.getColor(255, 0, 0), 2.0f, false
-            );
+        if (realPos != null && !mc.isIntegratedServerRunning() && target instanceof LivingEntity) {
+            renderTargetBox(event);
         }
     }
 
-    private void recordEnemyPosition(LivingEntity enemy) {
-        int enemyId = enemy.getId();
-        List<Vec3d> history = enemyPositionHistory.computeIfAbsent(enemyId, k -> new ArrayList<>());
-        StopWatch timer = enemyTimers.computeIfAbsent(enemyId, k -> new StopWatch());
-
-        if (timer.finished(recordInterval.getInt())) {
-            // Записываем текущую позицию врага
-            history.add(enemy.getPos());
-
-            // Ограничиваем размер истории
-            while (history.size() > historySize.getInt()) {
-                history.remove(0);
-            }
-
-            timer.reset();
+    private void renderTargetBox(WorldRenderEvent event) {
+        if (interpRealPos == null || realPos.squaredDistanceTo(interpRealPos) >= 4.0) {
+            interpRealPos = realPos;
         }
+
+        interpRealPos = MathUtil.interpolate(interpRealPos, realPos);
+        double halfWidth = target.getWidth() / 2.0;
+        Box box = new Box(
+                interpRealPos.x - halfWidth, interpRealPos.y, interpRealPos.z - halfWidth,
+                interpRealPos.x + halfWidth, interpRealPos.y + target.getHeight(), interpRealPos.z + halfWidth
+        );
+
+        int color = getTargetColor();
+        Render3DUtil.drawBox(box, color, 2.0f, true, true, true);
     }
 
-    private Vec3d getBackTrackPosition(LivingEntity enemy) {
-        List<Vec3d> history = enemyPositionHistory.get(enemy.getId());
-        if (history == null || history.isEmpty()) return null;
-
-        int targetTime = backTrackTime.getInt();
-        int targetIndex = Math.max(0, history.size() - 1 - (targetTime / recordInterval.getInt()));
-
-        return targetIndex < history.size() ? history.get(targetIndex) : null;
-    }
-
-    private boolean isEnemy(LivingEntity entity) {
-        return entity != mc.player &&
-                entity.isAlive() &&
-                !entity.isRemoved() &&
-                entity.distanceTo(mc.player) < 10; // Только ближние враги
-    }
-
-    // Получаем ID entity из пакета атаки
-    private int getEntityIdFromPacket(PlayerInteractEntityC2SPacket packet) {
-        // В 1.21.4 нужно использовать рефлексию или другой метод
-        // Это упрощенная версия - в реальности нужно разбирать пакет
+    private int getTargetColor() {
         try {
-            // Временное решение - возвращаем 0, нужно будет доработать
-            return 0;
-        } catch (Exception e) {
-            return 0;
+            if (((LivingEntity) target).hurtTime > 0) {
+                return 0xFFFF6666; // Light red when hurt
+            }
+        } catch (Throwable ignored) {
+        }
+        return 0xFFFF6666; // Default light red
+    }
+
+    private boolean shouldLag() {
+        if (target != null && target.isAlive() && !target.isRemoved()) {
+            if (realPos == null) {
+                return false;
+            } else {
+                return mc.player.getPos().distanceTo(realPos) <= range.getValue();
+            }
+        } else {
+            return false;
         }
     }
 
-    @Override
-    public void deactivate() {
-        enemyPositionHistory.clear();
-        enemyTimers.clear();
-        fakeHitPosition = null;
-        fakeHitBox = null;
-        currentTargetId = null;
+    private void reset() {
+        queue.clear();
+        target = null;
+        realPos = null;
+        interpRealPos = null;
+    }
+
+    private boolean isDisconnectPacket(Object packet) {
+        try {
+            return packet.getClass().getSimpleName().toLowerCase().contains("disconnect");
+        } catch (Throwable e) {
+            return false;
+        }
+    }
+
+    private double tryPacketDouble(Object packet, String... methodNames) {
+        for (String methodName : methodNames) {
+            try {
+                Object value = packet.getClass().getMethod(methodName).invoke(packet);
+                if (value instanceof Number number) {
+                    return number.doubleValue();
+                }
+            } catch (Throwable ignored) {
+            }
+        }
+        return Double.NaN;
+    }
+
+    private int tryPacketInt(Object packet, String... methodNames) {
+        for (String methodName : methodNames) {
+            try {
+                Object value = packet.getClass().getMethod(methodName).invoke(packet);
+                if (value instanceof Number number) {
+                    return number.intValue();
+                }
+            } catch (Throwable ignored) {
+            }
+        }
+
+        try {
+            for (String fieldName : new String[]{"id", "entityId", "entityID"}) {
+                Field field = packet.getClass().getDeclaredField(fieldName);
+                field.setAccessible(true);
+                Object value = field.get(packet);
+                if (value instanceof Number number) {
+                    return number.intValue();
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+
+        return -1;
+    }
+
+    private static class Queued {
+        final Object packet;
+        final long timestamp;
+
+        Queued(Object packet, long timestamp) {
+            this.packet = packet;
+            this.timestamp = timestamp;
+        }
     }
 }
