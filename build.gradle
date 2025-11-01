@@ -3,6 +3,7 @@ plugins {
     id 'maven-publish'
     id("org.jetbrains.kotlin.jvm") version "1.9.21"
 }
+
 version = project.mod_version
 group = project.maven_group
 
@@ -38,6 +39,77 @@ dependencies {
 
     modCompileOnly "meteordevelopment:baritone:1.21.4-SNAPSHOT"
     implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.21"
+}
+
+// Функция для поиска правильного пути к Java
+def findJavaHome() {
+    def javaHome = System.getProperty('java.home')
+    def possiblePaths = [
+            "${javaHome}/jmods/java.base.jmod",
+            "${javaHome}/../jmods/java.base.jmod",
+            "/usr/lib/jvm/java-21-openjdk/jmods/java.base.jmod",
+            "/usr/lib/jvm/java-21/jmods/java.base.jmod",
+            "/usr/lib/jvm/java-17-openjdk/jmods/java.base.jmod",
+            "/usr/lib/jvm/java-17/jmods/java.base.jmod"
+    ]
+
+    for (path in possiblePaths) {
+        def file = file(path)
+        if (file.exists()) {
+            println "Found Java base module at: ${file.path}"
+            return file.path
+        }
+    }
+
+    // Если не нашли jmod, используем rt.jar или классы
+    def rtJarPath = "${javaHome}/lib/rt.jar"
+    if (file(rtJarPath).exists()) {
+        println "Using rt.jar at: ${rtJarPath}"
+        return rtJarPath
+    }
+
+    // Последний вариант - использовать классы из Java home
+    println "Using Java classes from: ${javaHome}"
+    return "${javaHome}/lib"
+}
+
+// Простая задача обфускации с исправленными путями
+tasks.register('obfuscateJar', JavaExec) {
+    dependsOn remapJar
+
+    def proguardJar = file("proguard-7.4.1/lib/proguard.jar")
+    def javaBasePath = findJavaHome()
+
+    classpath = files(proguardJar)
+    mainClass = 'proguard.ProGuard'
+
+    args = [
+            '@proguard-rules.pro',
+            '-injars', tasks.named("remapJar").get().archiveFile.get().asFile.path,
+            '-outjars', "${layout.buildDirectory.get()}/libs/${project.archives_base_name}-${project.mod_version}-obfuscated.jar",
+            '-libraryjars', javaBasePath,
+            '-libraryjars', configurations.compileClasspath.asPath,
+            '-dontwarn',
+            '-ignorewarnings'
+    ]
+
+    doFirst {
+        if (!proguardJar.exists()) {
+            throw new GradleException("ProGuard not found. Please download it manually:\n" +
+                    "wget https://github.com/Guardsquare/proguard/releases/download/v7.4.1/proguard-7.4.1.tar.gz\n" +
+                    "tar xzf proguard-7.4.1.tar.gz")
+        }
+
+        println "Using Java path: ${javaBasePath}"
+        println "Input JAR: ${tasks.named("remapJar").get().archiveFile.get().asFile.path}"
+        println "Output JAR: ${layout.buildDirectory.get()}/libs/${project.archives_base_name}-${project.mod_version}-obfuscated.jar"
+    }
+}
+
+tasks.register('buildObfuscated') {
+    group = 'build'
+    description = 'Builds the obfuscated version of the mod'
+    dependsOn obfuscateJar
 }
 
 java {

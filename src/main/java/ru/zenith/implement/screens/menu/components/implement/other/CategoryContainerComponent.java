@@ -19,7 +19,7 @@ import java.util.List;
 @Accessors(chain = true)
 public class CategoryContainerComponent extends AbstractComponent {
     private final List<CategoryComponent> categoryComponents = new ArrayList<>();
-
+    private String searchQuery = ""; // Добавлено поле для поиска
 
     @Compile
     @Initialization
@@ -30,7 +30,13 @@ public class CategoryContainerComponent extends AbstractComponent {
         }
     }
 
-    
+    // Добавлен метод для установки поискового запроса
+    public void setSearchQuery(String query) {
+        this.searchQuery = query != null ? query.toLowerCase() : "";
+        // Передаем поисковый запрос всем категориям
+        categoryComponents.forEach(component -> component.setSearchQuery(this.searchQuery));
+    }
+
     private double globalScroll = 0;
 
     @Override
@@ -55,42 +61,36 @@ public class CategoryContainerComponent extends AbstractComponent {
         super.tick();
     }
 
-    
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         categoryComponents.forEach(categoryComponent -> categoryComponent.mouseClicked(mouseX, mouseY, button));
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
-    
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
         categoryComponents.forEach(categoryComponent -> categoryComponent.mouseReleased(mouseX, mouseY, button));
         return super.mouseReleased(mouseX, mouseY, button);
     }
 
-    
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
         categoryComponents.forEach(categoryComponent -> categoryComponent.mouseDragged(mouseX, mouseY, button, deltaX, deltaY));
         return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
     }
 
-    
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
         globalScroll += amount * 20;
         return true;
     }
 
-    
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         categoryComponents.forEach(categoryComponent -> categoryComponent.keyPressed(keyCode, scanCode, modifiers));
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
-    
     @Override
     public boolean charTyped(char chr, int modifiers) {
         categoryComponents.forEach(categoryComponent -> categoryComponent.charTyped(chr, modifiers));

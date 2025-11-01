@@ -1,124 +1,125 @@
 package ru.zenith.implement.features.modules.combat;
 
 import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.experimental.FieldDefaults;
+import lombok.experimental.NonFinal;
+import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
 import ru.zenith.api.event.EventHandler;
 import ru.zenith.api.feature.module.Module;
 import ru.zenith.api.feature.module.ModuleCategory;
-import ru.zenith.api.feature.module.setting.implement.SelectSetting;
+import ru.zenith.api.feature.module.setting.implement.BooleanSetting;
+import ru.zenith.api.feature.module.setting.implement.GroupSetting;
+import ru.zenith.api.feature.module.setting.implement.ValueSetting;
+import ru.zenith.common.util.other.Instance;
 import ru.zenith.implement.events.packet.PacketEvent;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.decoration.EndCrystalEntity;
-import net.minecraft.network.packet.c2s.play.PlayerInteractEntityC2SPacket;
-import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
 
+import java.util.concurrent.ThreadLocalRandom;
+
+@Getter
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Criticals extends Module {
-
-    // Статическая ссылка на экземпляр
-    private static Criticals instance;
-
-    final SelectSetting mode = new SelectSetting("Mode", "Criticals mode");
-
-    public static boolean cancelCrit;
-
-    public Criticals() {
-        super("Criticals", "Criticals", ModuleCategory.COMBAT);
-
-        // Добавляем значения отдельно в конструкторе
-        mode.value("NCP")
-                .value("UpdatedNCP")
-                .value("Strict")
-                .value("Grim")
-                .value("OldNCP");
-
-        setup(mode);
-        instance = this;
+    public static Criticals getInstance() {
+        return Instance.get(Criticals.class);
     }
 
-    // Статический метод для доступа из других модулей
-    public static Criticals getInstance() {
-        return instance;
+    BooleanSetting onlyCritical = new BooleanSetting("Only Critical", "Attacks only with critical hits")
+            .setValue(false);
+
+    BooleanSetting autoDisable = new BooleanSetting("Auto Disable", "Disables after critical hit")
+            .setValue(false);
+
+    ValueSetting delay = new ValueSetting("Delay", "Delay between critical attempts")
+            .setValue(100f).range(0f, 500f);
+
+    ValueSetting packetDelay = new ValueSetting("Packet Delay", "Delay between packets")
+            .setValue(10f).range(0f, 50f);
+
+    GroupSetting advancedGroup = new GroupSetting("Advanced", "Advanced critical settings")
+            .settings(onlyCritical, autoDisable, delay, packetDelay).setValue(false);
+
+    @NonFinal
+    long lastCriticalTime = 0L;
+
+    @NonFinal
+    long lastPacketTime = 0L;
+
+    public Criticals() {
+        super("Criticals", ModuleCategory.COMBAT);
+        setup(advancedGroup);
+    }
+
+    @Override
+    public void activate() {
+        lastCriticalTime = 0L;
+        lastPacketTime = 0L;
+        super.activate();
     }
 
     @EventHandler
-    public void onPacketSend(PacketEvent event) {
-        if (!event.isSend() || !(event.getPacket() instanceof PlayerInteractEntityC2SPacket)) return;
+    public void onPacket(PacketEvent e) {
+        if (!state || mc.player == null) return;
 
-        PlayerInteractEntityC2SPacket packet = (PlayerInteractEntityC2SPacket) event.getPacket();
+        // Только для пакетов атаки
+        if (e.getPacket() instanceof net.minecraft.network.packet.c2s.play.PlayerInteractEntityC2SPacket &&
+                !mc.player.isOnGround()) {
 
-        if (isAttackPacket(packet)) {
-            Entity ent = getEntityFromPacket(packet);
-            if (ent == null || ent instanceof EndCrystalEntity || cancelCrit)
-                return;
-            doCrit();
+            handleCriticalHit();
         }
     }
 
-    private boolean isAttackPacket(PlayerInteractEntityC2SPacket packet) {
-        try {
-            return packet.getClass().getSimpleName().contains("Attack");
-        } catch (Exception e) {
-            return true;
-        }
-    }
+    private void handleCriticalHit() {
+        if (!canPerformCritical()) return;
 
-    private Entity getEntityFromPacket(PlayerInteractEntityC2SPacket packet) {
-        try {
-            var field = packet.getClass().getDeclaredField("entityId");
-            field.setAccessible(true);
-            int entityId = (int) field.get(packet);
-            return mc.world.getEntityById(entityId);
-        } catch (Exception e) {
-            return null;
-        }
-    }
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastCriticalTime < delay.getValue()) return;
 
-    public void doCrit() {
-        if (!isState() || mc.player == null || mc.world == null)
+        // Задержка между пакетами
+        if (currentTime - lastPacketTime < packetDelay.getValue()) {
             return;
+        }
 
-        if ((mc.player.isOnGround() || mc.player.getAbilities().flying || mode.isSelected("Grim")) &&
-                !mc.player.isInLava() && !mc.player.isSubmergedInWater()) {
+        performCriticalAttack();
+        lastCriticalTime = currentTime;
+        lastPacketTime = currentTime;
 
-            String modeValue = mode.getSelected();
-            switch (modeValue) {
-                case "NCP":
-                    critPacket(0.0625D);
-                    critPacket(0.0);
-                    break;
-                case "UpdatedNCP":
-                    critPacket(0.000000271875);
-                    critPacket(0.0);
-                    break;
-                case "Strict":
-                    critPacket(0.062600301692775);
-                    critPacket(0.07260029960661);
-                    critPacket(0.0);
-                    critPacket(0.0);
-                    break;
-                case "Grim":
-                    if (!mc.player.isOnGround())
-                        critPacket(-0.000001);
-                    break;
-                case "OldNCP":
-                    critPacket(0.00001058293536);
-                    critPacket(0.00000916580235);
-                    critPacket(0.00000010371854);
-                    break;
-            }
+        if (autoDisable.isValue()) {
+            setState(false);
         }
     }
 
-    private void critPacket(double yDelta) {
-        if (mc.player == null) return;
+    private boolean canPerformCritical() {
+        return mc.player != null &&
+                !mc.player.isSubmergedInWater() &&
+                !mc.player.isClimbing() &&
+                !mc.player.isRiding() &&
+                mc.player.getAttackCooldownProgress(0.5f) >= 1.0f &&
+                mc.world != null;
+    }
 
-        mc.player.networkHandler.sendPacket(new PlayerMoveC2SPacket.PositionAndOnGround(
-                mc.player.getX(),
-                mc.player.getY() + yDelta,
-                mc.player.getZ(),
-                false,
-                false
-        ));
+    private void performCriticalAttack() {
+        if (mc.getNetworkHandler() == null || mc.player == null) return;
+
+        // Только один пакет вместо нескольких
+        double offsetY = ThreadLocalRandom.current().nextDouble(0.001, 0.002);
+
+        sendCriticalPosition(offsetY, false);
+    }
+
+    private void sendCriticalPosition(double offsetY, boolean onGround) {
+        if (mc.getNetworkHandler() != null && mc.player != null) {
+            PlayerMoveC2SPacket.PositionAndOnGround packet = new PlayerMoveC2SPacket.PositionAndOnGround(
+                    mc.player.getX(),
+                    mc.player.getY() + offsetY,
+                    mc.player.getZ(),
+                    onGround,
+                    false
+            );
+            mc.getNetworkHandler().sendPacket(packet);
+        }
+    }
+
+    public boolean shouldOnlyCritical() {
+        return state && onlyCritical.isValue();
     }
 }

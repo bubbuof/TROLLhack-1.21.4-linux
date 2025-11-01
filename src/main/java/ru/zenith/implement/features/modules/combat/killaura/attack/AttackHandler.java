@@ -62,10 +62,10 @@ public class AttackHandler implements QuickImports {
             shieldWatch.reset();
         }
 
-        if (!mc.player.isSwimming()) {
-            AutoSprint.getInstance().tickStop = MathUtil.getRandom(1, 2);
-            mc.player.setSprinting(false);
-        }
+        // if (!mc.player.isSwimming()) {
+        //    AutoSprint.getInstance().tickStop = MathUtil.getRandom(1, 2);
+        //    mc.player.setSprinting(false);
+        // }
     }
 
     void attackEntity(AttackPerpetrator.AttackPerpetratorConfigurable config) {

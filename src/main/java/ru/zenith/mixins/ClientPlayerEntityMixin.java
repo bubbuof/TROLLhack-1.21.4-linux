@@ -73,23 +73,6 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayerEntity
         if (event.isCancelled()) info.cancel();
     }
 
-    @ModifyExpressionValue(method = "tickMovement", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;isUsingItem()Z"))
-    private boolean usingItemHook(boolean original) {
-        if (original) {
-            UsingItemEvent event = new UsingItemEvent(EventType.ON);
-            EventManager.callEvent(event);
-            if (event.isCancelled()) return false;
-            AutoSprint.getInstance().tickStop = 1;
-        }
-        return original;
-    }
-
-    @WrapOperation(method = "canSprint", at = @At(value = "INVOKE", target = "Lnet/minecraft/entity/player/HungerManager;getFoodLevel()I"))
-    private int canSprintHook(HungerManager instance, Operation<Integer> original) {
-        AutoSprint autoSprint = AutoSprint.getInstance();
-        return autoSprint.isState() && autoSprint.ignoreHungerSetting.isValue() ? 20 : original.call(instance);
-    }
-
     @Inject(method = "sendMovementPackets", at = @At(value = "HEAD"), cancellable = true)
     private void preMotion(CallbackInfo ci) {
         MotionEvent event = new MotionEvent(getX(), getY(), getZ(), getYaw(1), getPitch(1), isOnGround());

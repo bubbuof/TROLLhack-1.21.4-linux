@@ -31,14 +31,16 @@ public class MenuScreen extends Screen implements QuickImports {
     public static MenuScreen INSTANCE = new MenuScreen();
     private final List<AbstractComponent> components = new ArrayList<>();
     private final CategoryContainerComponent categoryContainerComponent = new CategoryContainerComponent();
+    private final SearchComponent searchComponent = new SearchComponent();
     public final Animation animation = new DecelerateAnimation().setMs(200).setValue(1);
     public ModuleCategory category = ModuleCategory.COMBAT;
     public int x, y, width, height;
+    private boolean searchVisible = false;
 
     public void initialize() {
         animation.setDirection(FORWARDS);
         categoryContainerComponent.initializeCategoryComponents();
-        components.addAll(Arrays.asList(categoryContainerComponent));
+        components.addAll(Arrays.asList(categoryContainerComponent, searchComponent));
     }
 
     public MenuScreen() {
@@ -62,6 +64,18 @@ public class MenuScreen extends Screen implements QuickImports {
 
         categoryContainerComponent.position(x, y);
 
+        if (searchVisible) {
+            int searchWidth = 250;
+            int searchHeight = 35;
+            int searchX = window.getScaledWidth() / 2 - searchWidth / 2;
+            int searchY = window.getScaledHeight() / 2 - searchHeight / 2;
+            searchComponent.position(searchX, searchY);
+        } else {
+            searchComponent.position(-1000, -1000);
+        }
+
+        categoryContainerComponent.setSearchQuery(searchComponent.getText());
+
         MathUtil.scale(context.getMatrices(), x + (float) width / 2, y + (float) height / 2, getScaleAnimation(), () -> {
             components.forEach(component -> component.render(context, mouseX, mouseY, delta));
             windowManager.render(context, mouseX, mouseY, delta);
@@ -79,7 +93,46 @@ public class MenuScreen extends Screen implements QuickImports {
         return animation.getOutput().floatValue();
     }
 
+    public void toggleSearch() {
+        searchVisible = !searchVisible;
+        if (searchVisible) {
+            SearchComponent.typing = true;
+            searchComponent.setText(""); // Используем сеттер вместо прямого доступа
+            searchComponent.resetCursor(); // Сбрасываем курсор
+        } else {
+            SearchComponent.typing = false;
+        }
+        SoundManager.playSound(searchVisible ? SoundManager.OPEN_GUI : SoundManager.CLOSE_GUI);
+    }
 
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (keyCode == 70 && Screen.hasControlDown()) {
+            toggleSearch();
+            return true;
+        }
+
+        if (keyCode == 256 && searchVisible) {
+            searchVisible = false;
+            SearchComponent.typing = false;
+            return true;
+        }
+
+        if (keyCode == 256 && shouldCloseOnEsc()) {
+            SoundManager.playSound(SoundManager.CLOSE_GUI);
+            animation.setDirection(BACKWARDS);
+            return true;
+        }
+
+        if (windowManager.keyPressed(keyCode, scanCode, modifiers)) return true;
+        boolean handled = false;
+        for (AbstractComponent component : components) {
+            handled |= component.keyPressed(keyCode, scanCode, modifiers);
+        }
+        return handled || super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    // Остальные методы без изменений...
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         double[] p = unscale(mouseX, mouseY);
@@ -90,7 +143,6 @@ public class MenuScreen extends Screen implements QuickImports {
         }
         return handled || super.mouseClicked(mouseX, mouseY, button);
     }
-
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
@@ -114,7 +166,6 @@ public class MenuScreen extends Screen implements QuickImports {
         return handled || super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
     }
 
-
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontal, double vertical) {
         double[] p = unscale(mouseX, mouseY);
@@ -126,24 +177,6 @@ public class MenuScreen extends Screen implements QuickImports {
         return handled || super.mouseScrolled(mouseX, mouseY, horizontal, vertical);
     }
 
-
-    @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (keyCode == 256 && shouldCloseOnEsc()) {
-            SoundManager.playSound(SoundManager.CLOSE_GUI);
-            animation.setDirection(BACKWARDS);
-            return true;
-        }
-
-        if (windowManager.keyPressed(keyCode, scanCode, modifiers)) return true;
-        boolean handled = false;
-        for (AbstractComponent component : components) {
-            handled |= component.keyPressed(keyCode, scanCode, modifiers);
-        }
-        return handled || super.keyPressed(keyCode, scanCode, modifiers);
-    }
-
-
     @Override
     public boolean charTyped(char chr, int modifiers) {
         if (windowManager.charTyped(chr, modifiers)) return true;
@@ -154,17 +187,17 @@ public class MenuScreen extends Screen implements QuickImports {
         return handled || super.charTyped(chr, modifiers);
     }
 
-
     @Override
     public boolean shouldPause() {
         return false;
     }
 
-
     @Override
     public void close() {
         if (animation.isFinished(BACKWARDS)) {
             TextComponent.typing = false;
+            SearchComponent.typing = false;
+            searchVisible = false;
             super.close();
         }
     }

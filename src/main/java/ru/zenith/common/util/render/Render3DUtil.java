@@ -22,6 +22,7 @@ import ru.zenith.common.util.color.ColorUtil;
 import ru.zenith.common.util.math.MathUtil;
 import ru.zenith.common.util.math.ProjectionUtil;
 import ru.zenith.implement.events.render.WorldRenderEvent;
+import net.minecraft.entity.effect.StatusEffects;
 
 import java.util.*;
 import java.util.List;
@@ -337,6 +338,247 @@ public class Render3DUtil implements QuickImports {
                 Render3DUtil.drawTexture(entry, bloom, -scale / 2, -scale / 2, scale, scale, new Vector4i(color), canSee);
             }
         }
+    }
+
+    // НОВЫЙ МЕТОД ДЛЯ КРИСТАЛЛОВ
+    public void drawCrystals(MatrixStack matrixStack, LivingEntity entity, float animProgress, float hurtProgress,
+                             float crystalSpeed, float crystalSize, float crystalOrbit, int crystalCount) {
+        if (entity == null || animProgress <= 0) return;
+
+        Camera camera = mc.getEntityRenderDispatcher().camera;
+        Vec3d targetPos = MathUtil.interpolate(entity).subtract(camera.getPos());
+        boolean canSee = mc.player.canSee(entity);
+        double time = System.currentTimeMillis() / 1000.0;
+        float entityHeight = entity.getHeight();
+
+        // Основные кристаллы на внешней орбите
+        for (int i = 0; i < crystalCount; i++) {
+            double angle = time * crystalSpeed + i * (2 * Math.PI / crystalCount);
+            double radius = crystalOrbit * (1.0 + 0.15 * Math.sin(time * 2.5 + i * 0.7));
+
+            // Плавное движение по вертикали
+            double verticalOffset = 0.4 * Math.sin(time * 2.0 + i * 1.3);
+            float pulse = (float)(0.8 + 0.2 * Math.sin(time * 3.0 + i));
+
+            // Позиция кристалла
+            double crystalX = Math.cos(angle) * radius;
+            double crystalZ = Math.sin(angle) * radius;
+            double crystalY = verticalOffset;
+
+            renderSingleCrystal(
+                    matrixStack, camera, targetPos,
+                    crystalX, crystalY + entityHeight * 0.6, crystalZ,
+                    time, i, animProgress, hurtProgress, entity, canSee, pulse, 1.0f, crystalSize
+            );
+        }
+
+        // Внутренние кристаллы (меньшие, с другой анимацией)
+        int innerCrystals = crystalCount / 2;
+        for (int i = 0; i < innerCrystals; i++) {
+            double angle = time * (crystalSpeed * 1.8) + i * (2 * Math.PI / innerCrystals) + 0.3;
+            double radius = crystalOrbit * 0.6 * (1.0 + 0.1 * Math.sin(time * 3.5 + i));
+
+            double crystalX = Math.cos(angle) * radius;
+            double crystalZ = Math.sin(angle) * radius;
+            double crystalY = 0.3 * Math.cos(time * 2.8 + i * 2);
+
+            renderSingleCrystal(
+                    matrixStack, camera, targetPos,
+                    crystalX, crystalY + entityHeight * 0.7, crystalZ,
+                    time, i + crystalCount, animProgress, hurtProgress, entity, canSee, 0.6f, 0.7f, crystalSize
+            );
+        }
+
+        // Центральные кристаллы вокруг головы
+        int centerCrystals = 4;
+        for (int i = 0; i < centerCrystals; i++) {
+            double angle = time * (crystalSpeed * 2.2) + i * (2 * Math.PI / centerCrystals);
+            double radius = 0.3 * (1.0 + 0.05 * Math.sin(time * 4.0 + i));
+
+            double crystalX = Math.cos(angle) * radius;
+            double crystalZ = Math.sin(angle) * radius;
+            double crystalY = 0.1 * Math.sin(time * 5.0 + i);
+
+            renderSingleCrystal(
+                    matrixStack, camera, targetPos,
+                    crystalX, crystalY + entityHeight * 0.9, crystalZ,
+                    time, i + crystalCount + innerCrystals, animProgress, hurtProgress, entity, canSee, 0.4f, 0.5f, crystalSize
+            );
+        }
+    }
+
+    private void renderSingleCrystal(MatrixStack matrixStack, Camera camera, Vec3d targetPos,
+                                     double crystalX, double crystalY, double crystalZ,
+                                     double time, int index, float animProgress,
+                                     float hurtProgress, LivingEntity entity, boolean canSee,
+                                     float scaleMultiplier, float alphaMultiplier, float baseCrystalSize) {
+
+        // Создаем матрицу преобразования
+        MatrixStack matrices = new MatrixStack();
+        matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(camera.getPitch()));
+        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(camera.getYaw() + 180.0F));
+        matrices.translate(
+                targetPos.x + crystalX,
+                targetPos.y + crystalY,
+                targetPos.z + crystalZ
+        );
+
+        // Вращение кристаллов вокруг своей оси
+        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees((float)(time * 50 + index * 30)));
+        matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees((float)(time * 40 + index * 25)));
+        matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees((float)(time * 30 + index * 20)));
+
+        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-camera.getYaw()));
+        matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(camera.getPitch()));
+
+        MatrixStack.Entry entry = matrices.peek().copy();
+
+        // Динамический цвет с пульсацией
+        int baseColor = getCrystalColor(entity, hurtProgress, index, time);
+
+        // Эффект пульсации
+        float pulse = (float)(0.6 + 0.4 * Math.sin(time * 5.0 + index * 0.5));
+        int pulseColor = multiplyColorBrightness(baseColor, pulse);
+
+        // Альфа-канал с анимацией
+        float alpha = animProgress * alphaMultiplier * (0.4f + 0.6f * (float)Math.sin(time * 6.0 + index * 0.3));
+        int finalColor = multiplyColorAlpha(pulseColor, alpha);
+
+        // Размер кристалла с пульсацией
+        float baseSize = baseCrystalSize * 2.5f;
+        float animatedSize = baseSize * scaleMultiplier * (0.7f + 0.3f * (float)Math.sin(time * 4.0 + index));
+
+        // Рисуем основной кристалл
+        Render3DUtil.drawTexture(
+                entry,
+                bloom,
+                -animatedSize / 2,
+                -animatedSize / 2,
+                animatedSize,
+                animatedSize,
+                new Vector4i(finalColor, finalColor, finalColor, finalColor),
+                canSee
+        );
+
+        // Добавляем свечение (больший полупрозрачный слой)
+        float glowSize = animatedSize * 2.2f;
+        int glowColor = multiplyColorAlpha(finalColor, 0.15f);
+
+        Render3DUtil.drawTexture(
+                entry,
+                bloom,
+                -glowSize / 2,
+                -glowSize / 2,
+                glowSize,
+                glowSize,
+                new Vector4i(glowColor, glowColor, glowColor, glowColor),
+                canSee
+        );
+
+        // Энергетическое ядро (маленький яркий центр)
+        float coreSize = animatedSize * 0.3f;
+        int coreColor = multiplyColorBrightness(finalColor, 1.8f);
+        coreColor = multiplyColorAlpha(coreColor, 0.9f);
+
+        Render3DUtil.drawTexture(
+                entry,
+                bloom,
+                -coreSize / 2,
+                -coreSize / 2,
+                coreSize,
+                coreSize,
+                new Vector4i(coreColor, coreColor, coreColor, coreColor),
+                canSee
+        );
+    }
+
+    private int getCrystalColor(LivingEntity entity, float hurtProgress, int index, double time) {
+        // Базовый цвет - радужный градиент
+        int hue = (int)((System.currentTimeMillis() / 50 + index * 30) % 360);
+        int baseColor = fadeColor(hue);
+
+        // Эффект получения урона - красное свечение
+        if (hurtProgress > 0) {
+            int hurtColor = 0xFFFF5555; // Ярко-красный
+            return overlayColor(baseColor, hurtColor, hurtProgress * 0.8f);
+        }
+
+        // Эффект отравления - кислотно-зеленый
+        if (entity.hasStatusEffect(StatusEffects.POISON)) {
+            int poisonColor = 0xFF55FF55;
+            float pulse = (float)(0.5 + 0.5 * Math.sin(time * 8.0));
+            return overlayColor(baseColor, poisonColor, 0.6f * pulse);
+        }
+
+        // Эффект слабости - тускло-фиолетовый
+        if (entity.hasStatusEffect(StatusEffects.WEAKNESS)) {
+            int weaknessColor = 0xFFAA55AA;
+            return overlayColor(baseColor, weaknessColor, 0.4f);
+        }
+
+        // Эффект горения - оранжевый
+        if (entity.isOnFire()) {
+            int fireColor = 0xFFFFAA00;
+            float firePulse = (float)(0.3 + 0.7 * Math.sin(time * 10.0));
+            return overlayColor(baseColor, fireColor, 0.5f * firePulse);
+        }
+
+        return baseColor;
+    }
+
+    // Вспомогательные методы для работы с цветами
+    private int fadeColor(int hue) {
+        // Простая реализация fade эффекта
+        float normalizedHue = (hue % 360) / 360.0f;
+        int r = (int)(Math.sin(normalizedHue * Math.PI * 2 + 0) * 127 + 128);
+        int g = (int)(Math.sin(normalizedHue * Math.PI * 2 + 2) * 127 + 128);
+        int b = (int)(Math.sin(normalizedHue * Math.PI * 2 + 4) * 127 + 128);
+        return (0xFF << 24) | (r << 16) | (g << 8) | b;
+    }
+
+    private int multiplyColorBrightness(int color, float multiplier) {
+        int a = (color >> 24) & 0xFF;
+        int r = (int)(((color >> 16) & 0xFF) * multiplier);
+        int g = (int)(((color >> 8) & 0xFF) * multiplier);
+        int b = (int)((color & 0xFF) * multiplier);
+
+        r = MathHelper.clamp(r, 0, 255);
+        g = MathHelper.clamp(g, 0, 255);
+        b = MathHelper.clamp(b, 0, 255);
+
+        return (a << 24) | (r << 16) | (g << 8) | b;
+    }
+
+    private int multiplyColorAlpha(int color, float alpha) {
+        int a = (int)(((color >> 24) & 0xFF) * alpha);
+        int r = (color >> 16) & 0xFF;
+        int g = (color >> 8) & 0xFF;
+        int b = color & 0xFF;
+
+        a = MathHelper.clamp(a, 0, 255);
+
+        return (a << 24) | (r << 16) | (g << 8) | b;
+    }
+
+    private int overlayColor(int baseColor, int overlayColor, float strength) {
+        int r1 = (baseColor >> 16) & 0xFF;
+        int g1 = (baseColor >> 8) & 0xFF;
+        int b1 = baseColor & 0xFF;
+        int a1 = (baseColor >> 24) & 0xFF;
+
+        int r2 = (overlayColor >> 16) & 0xFF;
+        int g2 = (overlayColor >> 8) & 0xFF;
+        int b2 = overlayColor & 0xFF;
+
+        int r = (int)(r1 + (r2 - r1) * strength);
+        int g = (int)(g1 + (g2 - g1) * strength);
+        int b = (int)(b1 + (b2 - b1) * strength);
+
+        r = MathHelper.clamp(r, 0, 255);
+        g = MathHelper.clamp(g, 0, 255);
+        b = MathHelper.clamp(b, 0, 255);
+
+        return (a1 << 24) | (r << 16) | (g << 8) | b;
     }
 
     private float espValue = 1f,espSpeed = 1f, prevEspValue, circleStep;

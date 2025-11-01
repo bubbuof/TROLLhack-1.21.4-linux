@@ -4,6 +4,8 @@ import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
 import ru.kotopushka.compiler.sdk.annotations.Compile;
 import ru.zenith.implement.features.modules.combat.*;
+import ru.zenith.implement.features.modules.combat.CriticalsFDP;
+import ru.zenith.implement.features.modules.combat.Reach;
 import ru.zenith.implement.features.modules.misc.*;
 import ru.zenith.implement.features.modules.misc.FTHelper;
 import ru.zenith.implement.features.modules.movement.*;
@@ -17,14 +19,33 @@ import java.util.List;
 public class ModuleRepository {
     List<Module> modules = new ArrayList<>();
 
+
     public void setup() {
         register(
+                // new AncientFarm(),
+                new AutoDodge(),
+                new AutoCreeperFarm(),
+                new AntiAim(),
+                new AntiTarget(),
+                new AntiCheatDetector(),
+                new AncientXray(),
+                new SuperKnockback(),
+                new TridentAim(),
+                new CriticalsFDP(),
+                new Flight(),
+                new Reach(),
+                new Scaffold(),
+                new ElytraBooster(),
+                new ElytraTarget(),
+                new LegitAura(),
+                new BackTrack(),
+                new Parkour(),
+                new FastBow(),
+                new Velocity(),
                 new FTHelper(),
                 new HighJump(),
                 new Tracker(),
-                //new BackTrack(),
-                //new NoClip(),
-                new AutoBuff(),
+                new AutoPotion(),
                 new Jesus(),
                 new LongJump(),
                 new ServerHelper(),

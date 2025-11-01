@@ -34,7 +34,7 @@ public class Watermark extends AbstractDraggable {
         String serverIp = getServerIp();
 
         // Основной текст
-        String mainText = "gaysense beta b8";
+        String mainText = "gaysense beta b11";
         String infoText = playerName + " | " + fps + " | " + serverIp;
 
         // Рассчитываем размеры
@@ -64,9 +64,6 @@ public class Watermark extends AbstractDraggable {
         Fonts.getSize(12).drawString(matrix, infoText, getX() + 32, getY() + 18,
                 ColorUtil.getColor(180, 180, 180));
 
-        // Нижняя разделительная линия
-        rectangle.render(ShapeProperties.create(matrix, getX() + 32, getY() + 16, maxTextWidth, 0.5f)
-                .color(ColorUtil.getColor(60, 60, 60)).build());
     }
 
     private String getServerIp() {

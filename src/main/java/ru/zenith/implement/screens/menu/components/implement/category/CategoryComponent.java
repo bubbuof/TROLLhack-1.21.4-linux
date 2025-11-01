@@ -31,9 +31,14 @@ import java.util.Set;
 public class CategoryComponent extends AbstractComponent {
     private final List<ModuleComponent> moduleComponents = new ArrayList<>();
     private final ModuleCategory category;
+    private String searchQuery = ""; // Добавлено поле для поиска
 
     private final Animation alphaAnimation = new DecelerateAnimation().setMs(300).setValue(1);
 
+    // Добавлен метод для установки поискового запроса
+    public void setSearchQuery(String query) {
+        this.searchQuery = query != null ? query.toLowerCase() : "";
+    }
 
     @Compile
     @Initialization
@@ -54,16 +59,18 @@ public class CategoryComponent extends AbstractComponent {
         initialize();
     }
 
-
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         Matrix4f positionMatrix = context.getMatrices().peek().getPositionMatrix();
         ScissorManager scissorManager = Main.getInstance().getScissorManager();
 
+        // Расчет высоты с учетом фильтрации
         int contentHeight = 0;
         for (ModuleComponent component : moduleComponents) {
-            int compHeight = component.getComponentHeight();
-            contentHeight += compHeight + 2;
+            if (shouldRenderComponent(component)) { // Фильтрация по поиску
+                int compHeight = component.getComponentHeight();
+                contentHeight += compHeight + 2;
+            }
         }
         height = 24 + Math.max(0, contentHeight);
 
@@ -84,12 +91,14 @@ public class CategoryComponent extends AbstractComponent {
 
         float offset = 0;
         for (ModuleComponent component : moduleComponents) {
-            int compHeight = component.getComponentHeight();
-            component.x = listX;
-            component.y = listY + offset;
-            component.width = (int) listW;
-            component.render(context, mouseX, mouseY, delta);
-            offset += compHeight + 2;
+            if (shouldRenderComponent(component)) { // Фильтрация по поиску
+                int compHeight = component.getComponentHeight();
+                component.x = listX;
+                component.y = listY + offset;
+                component.width = (int) listW;
+                component.render(context, mouseX, mouseY, delta);
+                offset += compHeight + 2;
+            }
         }
 
         scissorManager.pop();
@@ -103,23 +112,24 @@ public class CategoryComponent extends AbstractComponent {
         float listX = x + 3;
         float listY = y + 20;
         float listW = width - 6;
-        float listH = height - 24;
         layoutModules(listX, listY, listW);
-        moduleComponents.forEach(moduleComponent -> moduleComponent.mouseClicked(mouseX, mouseY, button));
+        moduleComponents.stream()
+                .filter(this::shouldRenderComponent) // Фильтрация по поиску
+                .forEach(moduleComponent -> moduleComponent.mouseClicked(mouseX, mouseY, button));
         return super.mouseClicked(mouseX, mouseY, button);
     }
-
 
     @Override
     public boolean isHover(double mouseX, double mouseY) {
         return MathUtil.isHovered(mouseX, mouseY, x, y, width, height);
     }
 
-
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
         layoutModules(x + 3, y + 20, width - 6);
-        moduleComponents.forEach(moduleComponent -> moduleComponent.mouseReleased(mouseX, mouseY, button));
+        moduleComponents.stream()
+                .filter(this::shouldRenderComponent) // Фильтрация по поиску
+                .forEach(moduleComponent -> moduleComponent.mouseReleased(mouseX, mouseY, button));
         return super.mouseReleased(mouseX, mouseY, button);
     }
 
@@ -129,50 +139,63 @@ public class CategoryComponent extends AbstractComponent {
         return false;
     }
 
-
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
         float listX = x + 3;
         float listY = y + 20;
         float listW = width - 6;
         layoutModules(listX, listY, listW);
-        moduleComponents.forEach(moduleComponent -> moduleComponent.mouseDragged(mouseX, mouseY, button, deltaX, deltaY));
+        moduleComponents.stream()
+                .filter(this::shouldRenderComponent) // Фильтрация по поиску
+                .forEach(moduleComponent -> moduleComponent.mouseDragged(mouseX, mouseY, button, deltaX, deltaY));
         return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
     }
-
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         layoutModules(x + 3, y + 20, width - 6);
-        moduleComponents.forEach(moduleComponent -> moduleComponent.keyPressed(keyCode, scanCode, modifiers));
+        moduleComponents.stream()
+                .filter(this::shouldRenderComponent) // Фильтрация по поиску
+                .forEach(moduleComponent -> moduleComponent.keyPressed(keyCode, scanCode, modifiers));
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
-
 
     @Override
     public boolean charTyped(char chr, int modifiers) {
         layoutModules(x + 3, y + 20, width - 6);
-        moduleComponents.forEach(moduleComponent -> moduleComponent.charTyped(chr, modifiers));
+        moduleComponents.stream()
+                .filter(this::shouldRenderComponent) // Фильтрация по поиску
+                .forEach(moduleComponent -> moduleComponent.charTyped(chr, modifiers));
         return super.charTyped(chr, modifiers);
     }
 
     private void layoutModules(float listX, float listY, float listW) {
         float offset = 0;
         for (ModuleComponent component : moduleComponents) {
-            int compHeight = component.getComponentHeight();
-            component.x = listX;
-            component.y = listY + offset + (float) smoothedScroll;
-            component.width = (int) listW;
-            offset += compHeight + 2;
+            if (shouldRenderComponent(component)) { // Фильтрация по поиску
+                int compHeight = component.getComponentHeight();
+                component.x = listX;
+                component.y = listY + offset + (float) smoothedScroll;
+                component.width = (int) listW;
+                offset += compHeight + 2;
+            }
         }
     }
 
+    // Добавлен метод фильтрации модулей по поисковому запросу
+    private boolean shouldRenderComponent(ModuleComponent component) {
+        if (searchQuery == null || searchQuery.trim().isEmpty()) {
+            return true;
+        }
+
+        String moduleName = component.getModule().getName().toLowerCase();
+        String visibleName = component.getModule().getVisibleName().toLowerCase();
+
+        return moduleName.contains(searchQuery) || visibleName.contains(searchQuery);
+    }
 
     private void drawCategoryTab(DrawContext context, MatrixStack matrix) {
     }
 
-
     private int[] calculateOffsets() { return new int[]{0}; }
-
-    private boolean shouldRenderComponent(ModuleComponent component) { return true; }
 }
